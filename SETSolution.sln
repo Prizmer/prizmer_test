@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2024
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tu_SET", "tu_set\tu_SET.csproj", "{A03FB3E3-AA47-462C-91A5-F889E9189743}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SET4tmDriver", "SetDriver\SET4tmDriver.csproj", "{14FC09EC-8931-4B9B-89BB-42C7F0C6BCFD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A03FB3E3-AA47-462C-91A5-F889E9189743}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A03FB3E3-AA47-462C-91A5-F889E9189743}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A03FB3E3-AA47-462C-91A5-F889E9189743}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A03FB3E3-AA47-462C-91A5-F889E9189743}.Release|Any CPU.Build.0 = Release|Any CPU
+		{14FC09EC-8931-4B9B-89BB-42C7F0C6BCFD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{14FC09EC-8931-4B9B-89BB-42C7F0C6BCFD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{14FC09EC-8931-4B9B-89BB-42C7F0C6BCFD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{14FC09EC-8931-4B9B-89BB-42C7F0C6BCFD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BBB7FE1A-0A02-4A54-A1EA-3CBDBBCE1E13}
+	EndGlobalSection
+EndGlobal
