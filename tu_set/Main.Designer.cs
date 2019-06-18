@@ -47,7 +47,7 @@
             // 
             // ctlMeters1
             // 
-            this.ctlMeters1.AddressMeter = 1;
+            this.ctlMeters1.AddressMeter = ((uint)(1u));
             this.ctlMeters1.AddressParam = 1;
             this.ctlMeters1.ChannelParam = 1;
             this.ctlMeters1.EnableAuxilary = true;
@@ -58,7 +58,7 @@
             this.ctlMeters1.EnableMonthly = true;
             this.ctlMeters1.Location = new System.Drawing.Point(308, 12);
             this.ctlMeters1.Name = "ctlMeters1";
-            this.ctlMeters1.PasswordMeter = "111111";
+            this.ctlMeters1.PasswordMeter = "333333";
             this.ctlMeters1.Size = new System.Drawing.Size(898, 268);
             this.ctlMeters1.TabIndex = 1;
             // 
