@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tu_SET", "tu_set\tu_SET.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SET4tmDriver", "SetDriver\SET4tmDriver.csproj", "{14FC09EC-8931-4B9B-89BB-42C7F0C6BCFD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibPorts", "..\..\PollServer\PortsLib\LibPorts.csproj", "{13571FB0-472F-43B0-947D-64C5D1F2B4A4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{14FC09EC-8931-4B9B-89BB-42C7F0C6BCFD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{14FC09EC-8931-4B9B-89BB-42C7F0C6BCFD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{14FC09EC-8931-4B9B-89BB-42C7F0C6BCFD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13571FB0-472F-43B0-947D-64C5D1F2B4A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13571FB0-472F-43B0-947D-64C5D1F2B4A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13571FB0-472F-43B0-947D-64C5D1F2B4A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13571FB0-472F-43B0-947D-64C5D1F2B4A4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
