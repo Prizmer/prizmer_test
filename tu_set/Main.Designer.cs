@@ -47,7 +47,7 @@
             // 
             // ctlMeters1
             // 
-            this.ctlMeters1.AddressMeter = "1";
+            this.ctlMeters1.AddressMeter = 1;
             this.ctlMeters1.AddressParam = 1;
             this.ctlMeters1.ChannelParam = 1;
             this.ctlMeters1.EnableAuxilary = true;
