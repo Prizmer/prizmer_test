@@ -225,6 +225,7 @@ namespace Drivers
             m_depth_storage_power_slices = Convert.ToUInt16(m_max_records_power_slices / (60 / m_period_int_power_slices + 1));
             m_size_record_power_slices = (60 / m_period_int_power_slices + 1) * 8;
 
+ 
         }
 
 
@@ -251,14 +252,11 @@ namespace Drivers
                 }
             }
 
-            /*
-            for (byte t = 1; t <= (byte)TypesValues.QC; t++)
-            {
-                m_dictDataTypes.Add(t, "");
-            }
-            */
-
             m_vport = data_vport;
+
+            //byte[] tmp = { 0x05, 0x01, 0xCE, 0xFF, 0xCF, 0x00, 0x02, 0xD8, 0xD8, 0x00, 0xB2, 0xC3, 0x7A, 0x00, 0x5F, 0xFB, 0x3C, 0x5B, 0x2B };
+
+  
         }
 
         public void SetTypesForRead(List<byte> types)
@@ -286,8 +284,6 @@ namespace Drivers
                 }
             }
         }
-
-
 
         private bool SendCommand(byte[] cmnd, ref byte[] answer, ushort cmd_size, ushort answ_size)
         {
@@ -942,10 +938,6 @@ namespace Drivers
             return true;
         }
 
-        public bool ReadDailyValues(byte day, byte month, ushort year, ref Values values)
-        {
-            return false;
-        }
 
         // расчет контрольной суммы
         private ushort CalcCRC(byte[] StrForCRC, ushort size)
@@ -1033,11 +1025,11 @@ namespace Drivers
                             buff[2] = answer[1 + 1 + i * 4];
                             buff[3] = answer[1 + 0 + i * 4];
 
-                            if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
-                            {
+                            //if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
+                            //{
                                 recordValue = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
                                 return true;
-                            }
+                            //}
                         }
                     }
                 }
@@ -1060,63 +1052,6 @@ namespace Drivers
 
 
 
-
-            return false;
-        }
-
-        public bool ReadMonthlyValues(DateTime dt, ushort param, ushort tarif, ref float recordValue)
-        {
-            if ((m_dt.Year < dt.Year) || (m_dt.Year == dt.Year && m_dt.Month < dt.Month))
-                return false;
-
-            byte[] cmnd = new byte[32];
-            byte[] answer = new byte[RMONTHLY_ANSW_SIZE_BASE + m_energy * 4];
-            byte[] command;
-
-            if (param >= 0 && param <= 3)
-            {
-                //чтение массивов энергии на начало текущего месяца
-                command = new byte[] { 0x0A, 0x83 };
-                command.CopyTo(cmnd, 0);
-
-                if (tarif >= 0 && tarif <= 8)
-                {
-                    cmnd[2] = (byte)dt.Month;
-                    cmnd[3] = (byte)tarif;
-                    cmnd[4] = 0xF; //маскировочный байт для получения только 00001111 = A+,A-,R+,R-
-                    cmnd[5] = 0;  //резерв        
-
-                    if (SendCommand(cmnd, ref answer, 6, RCURRENT_ANSW_SIZE))
-                    {
-                        for (byte i = 0; i < m_energy; i++)
-                        {
-                            if (i != param) continue;
-
-                            byte[] buff = new byte[4];
-                            buff[0] = answer[1 + 3 + i * 4];
-                            buff[1] = answer[1 + 2 + i * 4];
-                            buff[2] = answer[1 + 1 + i * 4];
-                            buff[3] = answer[1 + 0 + i * 4];
-
-                            if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
-                            {
-                                recordValue = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
-                                return true;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    this.WriteToLog("ReadCurrentValues: неподдерживаемое значение tarif");
-                    return false;
-                }
-            }
-            else
-            {
-                this.WriteToLog("ReadCurrentValues: неподдерживаемое значение param");
-                return false;
-            }
 
             return false;
         }
@@ -1156,11 +1091,11 @@ namespace Drivers
                             buff[2] = answer[1 + 1 + i * 4];
                             buff[3] = answer[1 + 0 + i * 4];
 
-                            if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
-                            {
+                            //if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
+                            //{
                                 recordValue = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
                                 return true;
-                            }
+                            //}
                         }
                     }
                 }
@@ -1178,6 +1113,65 @@ namespace Drivers
 
             return false;
         }
+
+        public bool ReadMonthlyValues(DateTime dt, ushort param, ushort tarif, ref float recordValue)
+        {
+            if ((m_dt.Year < dt.Year) || (m_dt.Year == dt.Year && m_dt.Month < dt.Month))
+                return false;
+
+            byte[] cmnd = new byte[32];
+            byte[] answer = new byte[RMONTHLY_ANSW_SIZE_BASE + m_energy * 4];
+            byte[] command;
+
+            if (param >= 0 && param <= 3)
+            {
+                //чтение массивов энергии на начало текущего месяца
+                command = new byte[] { 0x0A, 0x83 };
+                command.CopyTo(cmnd, 0);
+
+                if (tarif >= 0 && tarif <= 8)
+                {
+                    cmnd[2] = (byte)dt.Month;
+                    cmnd[3] = (byte)tarif;
+                    cmnd[4] = 0xF; //маскировочный байт для получения только 00001111 = A+,A-,R+,R-
+                    cmnd[5] = 0;  //резерв        
+
+                    if (SendCommand(cmnd, ref answer, 6, RCURRENT_ANSW_SIZE))
+                    {
+                        for (byte i = 0; i < m_energy; i++)
+                        {
+                            if (i != param) continue;
+
+                            byte[] buff = new byte[4];
+                            buff[0] = answer[1 + 3 + i * 4];
+                            buff[1] = answer[1 + 2 + i * 4];
+                            buff[2] = answer[1 + 1 + i * 4];
+                            buff[3] = answer[1 + 0 + i * 4];
+
+                            //if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
+                            //{
+                                recordValue = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
+                                return true;
+                            //}
+                        }
+                    }
+                }
+                else
+                {
+                    this.WriteToLog("ReadCurrentValues: неподдерживаемое значение tarif");
+                    return false;
+                }
+            }
+            else
+            {
+                this.WriteToLog("ReadCurrentValues: неподдерживаемое значение param");
+                return false;
+            }
+
+            return false;
+        }
+
+
 
         public bool ReadPowerSlice(DateTime dt_begin, DateTime dt_end, ref List<RecordPowerSlice> listRPS, byte period)
         {
@@ -1272,6 +1266,11 @@ namespace Drivers
         #endregion
 
         #region Не используемое
+
+        public bool ReadDailyValues(byte day, byte month, ushort year, ref Values values)
+        {
+            return false;
+        }
 
         public bool ReadDailyValues(uint recordId, ushort param, ushort tarif, ref float recordValue)
         {
