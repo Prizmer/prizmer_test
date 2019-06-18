@@ -8,12 +8,16 @@ using PollingLibraries.LibLogger;
 using PollingLibraries.LibPorts;
 using Drivers.LibMeter;
 
+using CRCCalc;
+using CRCCalc.Algorithms;
+
+
 
 namespace Drivers
 {
     public class SET4tmDriver : CMeter, IMeter
     {
-         private enum TypesValues
+        private enum TypesValues
         {
             Tarif1AP = 1,
             Tarif1AM = 2,
@@ -213,17 +217,16 @@ namespace Drivers
 
         #endregion
 
-        /// <summary>
-        /// Конструктор
-        /// </summary>
-        /// <param name="address"></param>
-        /// <param name="password"></param>
-        /// 
         public SET4tmDriver()
         {
             m_depth_storage_power_slices = Convert.ToUInt16(m_max_records_power_slices / (60 / m_period_int_power_slices + 1));
             m_size_record_power_slices = (60 / m_period_int_power_slices + 1) * 8;
         }
+
+        LibCRC crcLib = new LibCRC();
+        const string CRC_ALG_NAME = "crc16ModBus";
+
+
 
         public void Init(uint address, string pass, VirtualPort data_vport)
         {
@@ -282,55 +285,8 @@ namespace Drivers
             }
         }
 
-        /// <summary>
-        /// расчет контрольной суммы
-        /// </summary>
-        /// <param name="StrForCRC"></param>
-        /// <param name="size"></param>
-        /// <returns></returns>
-        private ushort CalcCRC(byte[] StrForCRC, ushort size)
-        {
-            ushort crc = UpdateCRC(StrForCRC[0], m_init_crc);
 
-            for (ushort i = 1; i < size; i++)
-            {
-                crc = UpdateCRC(StrForCRC[i], crc);
-            }
-            m_crc[0] = Convert.ToByte(crc / 256);
-            m_crc[1] = Convert.ToByte(crc % 256);
 
-            return BitConverter.ToUInt16(m_crc, 0);
-        }
-
-        /// <summary>
-        /// обновление контрольной суммы
-        /// </summary>
-        /// <param name="C"></param>
-        /// <param name="oldCRC"></param>
-        /// <returns></returns>
-        private ushort UpdateCRC(byte C, ushort oldCRC)
-        {
-            byte i = 0;
-            byte[] arrCRC = new byte[2];
-
-            arrCRC[1] = Convert.ToByte(oldCRC >> 8);
-            arrCRC[0] = Convert.ToByte(oldCRC & 0xFF);
-
-            i = Convert.ToByte(arrCRC[1] ^ C);
-            arrCRC[1] = Convert.ToByte(arrCRC[0] ^ srCRCHi[i]);
-            arrCRC[0] = srCRCLo[i];
-
-            return BitConverter.ToUInt16(arrCRC, 0);
-        }
-
-        /// <summary>
-        /// Отправка команды
-        /// </summary>
-        /// <param name="cmnd"></param>
-        /// <param name="answer"></param>
-        /// <param name="cmd_size"></param>
-        /// <param name="answ_size"></param>
-        /// <returns></returns>
         private bool SendCommand(byte[] cmnd, ref byte[] answer, ushort cmd_size, ushort answ_size)
         {
             bool res = false;
@@ -353,11 +309,6 @@ namespace Drivers
             return res;
         }
 
-        /// <summary>
-        /// формирование команды
-        /// </summary>
-        /// <param name="cmnd"></param>
-        /// <param name="size"></param>
         private void MakeCommand(byte[] cmnd, ref ushort size)
         {
             List<byte> tmpCmd = new List<byte>();
@@ -390,50 +341,6 @@ namespace Drivers
             size += 3;
 
             m_cmd = tmpCmd.ToArray();
-        }
-
-        /// <summary>
-        /// Поиск пакета данных
-        /// </summary>
-        /// <param name="array"></param>
-        /// <returns></returns>
-        public int FindPacketSignature(Queue<byte> queue)
-        {
-            try
-            {
-                byte[] array = new byte[queue.Count];
-                array = queue.ToArray();
-
-                //WriteToLog("Request: " + BitConverter.ToString(m_cmd));
-                //WriteToLog("Response: " + BitConverter.ToString(array));
-
-                int i = 0;
-                bool have_echo = true;
-                if (array[i] == m_cmd[0])
-                {
-                    int j = 0;
-                    for (j = 0; j < m_length_cmd; j++)
-                    {
-                        if (array[i + j] != m_cmd[j])
-                        {
-                            have_echo = false;
-                            break;
-                        }
-                    }
-                    if (have_echo)
-                    {
-                        i += j;
-                    }
-                }
-
-                return i;
-
-                throw new ApplicationException("Несовпадение байт в пакете");
-            }
-            catch
-            {
-                return -1;
-            }
         }
 
         /// <summary>
@@ -610,7 +517,6 @@ namespace Drivers
             return true;
         }
 
-
         /// <summary>
         /// Чтение вспомогательных параметров
         /// </summary>
@@ -703,6 +609,831 @@ namespace Drivers
                 default: return false;
             }
         }
+
+        public bool ReadPowerSlice(ref List<RecordPowerSlice> listRPS, DateTime dt_begin, byte period)
+        {
+            try
+            {
+                // читаем последний срез
+                LastPowerSlice lps = new LastPowerSlice();
+                if (!ReadCurrentPowerSliceInfo(ref lps))
+                {
+                    return false;
+                }
+
+                // Вычисляем разницу в часах
+                TimeSpan span = lps.dt - dt_begin;
+                int diff_hours = Convert.ToInt32(span.TotalHours);
+
+                // если разница > max кол-ва хранящихся записей в счётчике, то не вычитываем их из счётчика
+                if (diff_hours >= m_depth_storage_power_slices)
+                {
+                    diff_hours = m_depth_storage_power_slices;
+                }
+
+                if (diff_hours > (lps.addr / 24))
+                {
+                    diff_hours = lps.addr / 24;
+                }
+
+                //WriteToLog("differense hours=" + diff_hours.ToString() + "; reload=" + lps.reload.ToString() + "; dt_begin=" + dt_begin.ToString());
+                List<RecordPowerSlice> lRPS = new List<RecordPowerSlice>();
+
+                for (int i = diff_hours; i > 0; i--)
+                {
+                    int add_minus_val = (lps.dt.Minute == 0) ? 8 : 16;
+                    int addr = lps.addr - Convert.ToUInt16(m_size_record_power_slices * i) - (ushort)add_minus_val;
+                    ushort address_slice = (addr < 0) ? Convert.ToUInt16(Convert.ToInt32(65536 + addr)) : Convert.ToUInt16(addr);
+
+                    // чтение среза по рассчитанному адресу и при чтении не было ошибок
+
+                    List<IndaySlice> record_slices = new List<IndaySlice>();
+                    if (ReadSlice((ushort)address_slice, ref record_slices, period))
+                    {
+                        foreach (IndaySlice ids in record_slices)
+                        {
+                            RecordPowerSlice rps = new RecordPowerSlice();
+                            rps.APlus = (float)ids.values[0].value;
+                            rps.AMinus = (float)ids.values[1].value;
+                            rps.RPlus = (float)ids.values[2].value;
+                            rps.RMinus = (float)ids.values[3].value;
+                            rps.status = Convert.ToByte(!ids.not_full);
+                            rps.date_time = ids.date_time;
+                            rps.period = 30;
+                            lRPS.Add(rps);
+                        }
+                    }
+                    else
+                    {
+                        WriteToLog("ReadPowerSlice: slice has not been read");
+                        break;
+                    }
+                }
+
+                if (lRPS.Count > 0)
+                {
+                    listRPS = lRPS;
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteToLog("ReadPowerSlice: " + ex.Message);
+                return false;
+            }
+
+            return false;
+        }
+
+        // Чтение среза мощности по указанному адресу
+        private bool ReadSlice(ushort addr_slice, ref List<IndaySlice> record_slices, byte period)
+        {
+            if (period != m_period_int_power_slices)
+            {
+                return false;
+            }
+
+            byte[] cmnd = new byte[32];
+            byte[] answer = new byte[RSLICE_ANSW_SIZE_MIN + m_size_record_power_slices];
+            byte[] command = new byte[] { 0x06, 0x03 };
+            byte[] addr = new byte[2];
+
+            cmnd[0] = command[0];
+            cmnd[1] = command[1];
+            addr = BitConverter.GetBytes(addr_slice);
+            cmnd[2] = addr[1];
+            cmnd[3] = addr[0];
+            cmnd[4] = m_size_record_power_slices;
+
+            bool read_ok = false;
+
+            int p = 0;
+            do
+            {
+                if (SendCommand(cmnd, ref answer, 5, Convert.ToUInt16(RSLICE_ANSW_SIZE_MIN + m_size_record_power_slices)))
+                {
+                    read_ok = true;
+                    break;
+                }
+            } while (p++ < 3);
+
+            //WriteToLog("Request: " + BitConverter.ToString(m_cmd));
+            //WriteToLog("ReadSlice: " + BitConverter.ToString(answer));
+
+            if (read_ok)
+            {
+                try
+                {
+                    // проверка периода интегрирования
+                    if (answer[6] == m_period_int_power_slices)
+                    {
+                        // время записи среза
+                        int hour = CommonMeters.DEC2HEX(answer[1]);
+                        int day = CommonMeters.DEC2HEX(answer[2]);
+                        int month = CommonMeters.DEC2HEX(answer[3]);
+                        int year = CommonMeters.DEC2HEX(answer[4]) + 2000;
+
+                        WriteToLog("ReadSlice address: " + m_address.ToString() + "; datetime: hour=" + hour.ToString() + " day=" + day.ToString() + " month=" + month.ToString() + " year=" + year.ToString());
+
+                        byte[] slices_data = new byte[16];
+
+                        for (int b = 0; b < slices_data.Length; b++)
+                        {
+                            slices_data[b] = answer[9 + b];
+                        }
+
+                        for (int j = 0; j < 60 / m_period_int_power_slices; j++)
+                        {
+                            IndaySlice rps = new IndaySlice();
+                            rps.values = new List<RecordValue>();
+                            // Время среза
+                            rps.date_time = new DateTime(year, month, day, hour, j * 30, 0);
+                            // Неполный срез
+                            rps.not_full = (Convert.ToByte(slices_data[0] >> 7) == 1) ? true : false;
+
+                            WriteToLog("ReadSlice: datetime " + rps.date_time.ToString() + "; status " + rps.not_full.ToString());
+
+                            // Разбираем по видам энергии
+                            for (int i = 0; i < 4; i++)
+                            {
+                                byte type = 0;
+                                switch (i)
+                                {
+                                    case 0:
+                                        type = (byte)TypesValues.PowerSliceAP;
+                                        break;
+                                    case 1:
+                                        type = (byte)TypesValues.PowerSliceAM;
+                                        break;
+                                    case 2:
+                                        type = (byte)TypesValues.PowerSliceRP;
+                                        break;
+                                    case 3:
+                                        type = (byte)TypesValues.PowerSliceRM;
+                                        break;
+                                }
+                                RecordValue rv;
+                                rv.type = type;
+                                rv.fine_state = false;
+                                rv.value = 0;
+
+                                byte[] buff = new byte[2];
+                                buff[0] = slices_data[j * 8 + i * 2 + 1];
+                                buff[1] = Convert.ToByte(slices_data[j * 8 + i * 2 + 0] & 0x7F);
+
+                                rv.value = Math.Round((Convert.ToSingle(Convert.ToSingle(BitConverter.ToUInt16(buff, 0)) / (2f * (float)m_gear_ratio)) * (60 / m_period_int_power_slices)) / 2f, 4);//n/2a*60/period
+                                rv.fine_state = true;
+
+                                rps.values.Add(rv);
+                            }
+
+                            record_slices.Add(rps);
+                        }
+                    }
+                    else
+                    {
+                        WriteToLog("Wrong period integr: target = " + m_period_int_power_slices.ToString() + "; from answer=" + answer[6].ToString());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    WriteToLog("ReadSlice - " + ex.Message);
+                    return false;
+                }
+            }
+
+            return read_ok;
+        }
+
+        // Чтение информации о последнем зафиксированном счетчиком среза
+        private bool ReadCurrentPowerSliceInfo(ref LastPowerSlice lps)
+        {
+            byte[] answer = new byte[RLASTSLICE_ANSW_SIZE];
+            byte[] command = new byte[] { 0x08, 0x4 };
+
+            // Читаем последний срез мощности для определения адреса физической памяти последней записи массива
+            if (!SendCommand(command, ref answer, 2, RLASTSLICE_ANSW_SIZE))
+                return false;
+
+            try
+            {
+                byte[] temp = new byte[2] { answer[7], answer[6] };
+
+                // адрес последней записи
+                lps.addr = BitConverter.ToUInt16(temp, 0);
+
+                // признак перезаписи области профиля
+                lps.reload = ((answer[1] & 0x80) == 0x80) ? true : false;
+
+                // конвертируем время из DEC в HEX 
+                int minute = CommonMeters.DEC2HEX(Convert.ToByte(answer[1] & 0x7F));
+                int hour = CommonMeters.DEC2HEX(answer[2]);
+                int day = CommonMeters.DEC2HEX(answer[3]);
+                int month = CommonMeters.DEC2HEX(answer[4]);
+                int year = CommonMeters.DEC2HEX(answer[5]) + 2000;
+
+                //minute = (minute > 15 && minute < 45) ? 30 : 00;
+
+                //WriteToLog("ReadCurrentPowerSliceInfo datetime: minute" + answer[1].ToString("x") + " hour=" + hour.ToString() + " day=" + day.ToString() + " month=" + month.ToString() + " year=" + year.ToString());
+
+                lps.dt = new DateTime(year, month, day, hour, minute, 0);
+
+                //WriteToLog("Last power slice: Reload=" + lps.reload.ToString() +
+                //                            "; Address=" + lps.addr.ToString() +
+                //                            "; Datetime=" + lps.dt.ToShortDateString() + " " + lps.dt.ToShortTimeString());
+            }
+            catch (Exception ex)
+            {
+                WriteToLog("ReadCurrentPowerSliceInfo - " + ex.Message);
+                return false;
+            }
+            return true;
+        }
+
+        public bool ReadMonthlyValues(byte month, ushort year, ref Values values)
+        {
+            if ((m_dt.Year < year) || (m_dt.Year == year && m_dt.Month < month))
+            {
+                return false;
+            }
+
+            byte[] cmnd = new byte[32];
+            byte[] answer = new byte[RMONTHLY_ANSW_SIZE_BASE + m_energy * 4];
+
+            bool[] already_read_tarif = new bool[4] { false, false, false, false };
+
+            for (int t = 0; t < m_types_for_read_expense.Count; t++)
+            {
+                byte tarif = 0;
+                switch (m_types_for_read_expense[t])
+                {
+                    case (byte)TypesValues.Tarif1AP:
+                    case (byte)TypesValues.Tarif1AM:
+                    case (byte)TypesValues.Tarif1RP:
+                    case (byte)TypesValues.Tarif1RM:
+                        tarif = 1;
+                        break;
+                    case (byte)TypesValues.Tarif2AP:
+                    case (byte)TypesValues.Tarif2AM:
+                    case (byte)TypesValues.Tarif2RP:
+                    case (byte)TypesValues.Tarif2RM:
+                        tarif = 2;
+                        break;
+                    case (byte)TypesValues.Tarif3AP:
+                    case (byte)TypesValues.Tarif3AM:
+                    case (byte)TypesValues.Tarif3RP:
+                    case (byte)TypesValues.Tarif3RM:
+                        tarif = 3;
+                        break;
+                    case (byte)TypesValues.Tarif4AP:
+                    case (byte)TypesValues.Tarif4AM:
+                    case (byte)TypesValues.Tarif4RP:
+                    case (byte)TypesValues.Tarif4RM:
+                        tarif = 4;
+                        break;
+                    default:
+                        continue;
+                }
+
+                if (already_read_tarif[tarif - 1] == true)
+                    continue;
+
+                already_read_tarif[tarif - 1] = true;
+
+                byte[] command = new byte[] { 0x0A, 0x83 };
+
+                command.CopyTo(cmnd, 0);
+                cmnd[2] = month;
+                cmnd[3] = tarif;
+                cmnd[4] = 0xF;//A+;A-;R+;R-
+                cmnd[5] = 0;
+
+                if (!SendCommand(cmnd, ref answer, 6, RMONTHLY_ANSW_SIZE_BASE + m_energy * 4))
+                    continue;
+
+                for (byte i = 0; i < m_energy; i++)
+                {
+                    if (m_types_for_read_expense.Contains(Convert.ToByte(tarif + i))) // + вид энергии: 0-A+;1-A-;2-R+;3-R-
+                    {
+                        RecordValue recordValue;
+                        recordValue.fine_state = false;
+                        recordValue.value = 0;
+                        recordValue.type = Convert.ToByte(tarif + i);
+
+                        byte[] buff = new byte[4];
+                        buff[0] = answer[1 + 3 + i * 4];
+                        buff[1] = answer[1 + 2 + i * 4];
+                        buff[2] = answer[1 + 1 + i * 4];
+                        buff[3] = answer[1 + 0 + i * 4];
+
+                        if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
+                        {
+                            recordValue.fine_state = true;
+                            recordValue.value = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
+                        }
+
+                        values.listRV.Add(recordValue);
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        public bool ReadDailyValues(byte day, byte month, ushort year, ref Values values)
+        {
+            return false;
+        }
+
+        // расчет контрольной суммы
+        private ushort CalcCRC(byte[] StrForCRC, ushort size)
+        {
+            ushort crc = UpdateCRC(StrForCRC[0], m_init_crc);
+
+            for (ushort i = 1; i < size; i++)
+            {
+                crc = UpdateCRC(StrForCRC[i], crc);
+            }
+            m_crc[0] = Convert.ToByte(crc / 256);
+            m_crc[1] = Convert.ToByte(crc % 256);
+
+            return BitConverter.ToUInt16(m_crc, 0);
+        }
+
+        // обновление контрольной суммы
+        private ushort UpdateCRC(byte C, ushort oldCRC)
+        {
+            byte i = 0;
+            byte[] arrCRC = new byte[2];
+
+            arrCRC[1] = Convert.ToByte(oldCRC >> 8);
+            arrCRC[0] = Convert.ToByte(oldCRC & 0xFF);
+
+            i = Convert.ToByte(arrCRC[1] ^ C);
+            arrCRC[1] = Convert.ToByte(arrCRC[0] ^ srCRCHi[i]);
+            arrCRC[0] = srCRCLo[i];
+
+            return BitConverter.ToUInt16(arrCRC, 0);
+        }
+
+        #region Реализация методов интерфейса
+
+        public int FindPacketSignature(Queue<byte> queue)
+        {
+            try
+            {
+                byte[] array = new byte[queue.Count];
+                array = queue.ToArray();
+
+                byte[] resCRC = null;
+                if (crcLib.GetCRCFromByteArr(array, CRC_ALG_NAME, ref resCRC))
+                {
+                    if (resCRC != null && resCRC[0] == 0 && resCRC[1] == 0)
+                        return 1; // crc = 0 0, успех
+                }
+
+                return -1;
+            }
+            catch
+            {
+                return -1;
+            }
+        }
+
+        public bool ReadCurrentValues(ushort param, ushort tarif, ref float recordValue)
+        {
+            byte[] cmnd = new byte[32];
+            byte[] answer = new byte[RCURRENT_ANSW_SIZE];
+            byte[] command;
+
+            if (param >= 0 && param <= 3)
+            {
+                //чтение массивов энергии от сброса
+                command = new byte[] { 0x05, 0x0 };
+                command.CopyTo(cmnd, 0);
+
+                if (tarif >= 0 && tarif <= 8)
+                {
+                    cmnd[2] = (byte)tarif;
+
+                    if (SendCommand(cmnd, ref answer, 3, RCURRENT_ANSW_SIZE))
+                    {
+                        for (byte i = 0; i < m_energy; i++)
+                        {
+                            if (i != param) continue;
+
+                            byte[] buff = new byte[4];
+                            buff[0] = answer[1 + 3 + i * 4];
+                            buff[1] = answer[1 + 2 + i * 4];
+                            buff[2] = answer[1 + 1 + i * 4];
+                            buff[3] = answer[1 + 0 + i * 4];
+
+                            if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
+                            {
+                                recordValue = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
+                                return true;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    this.WriteToLog("ReadCurrentValues: неподдерживаемое значение tarif");
+                    return false;
+                }
+            }
+            else if (param >= 5 && param <= 8)
+            {
+                return ReadAuxilaryParams(param, (byte)tarif, ref recordValue);
+            }
+            else
+            {
+                this.WriteToLog("ReadCurrentValues: неподдерживаемое значение param");
+                return false;
+            }
+
+
+
+
+
+            return false;
+        }
+
+        public bool ReadMonthlyValues(DateTime dt, ushort param, ushort tarif, ref float recordValue)
+        {
+            if ((m_dt.Year < dt.Year) || (m_dt.Year == dt.Year && m_dt.Month < dt.Month))
+                return false;
+
+            byte[] cmnd = new byte[32];
+            byte[] answer = new byte[RMONTHLY_ANSW_SIZE_BASE + m_energy * 4];
+            byte[] command;
+
+            if (param >= 0 && param <= 3)
+            {
+                //чтение массивов энергии на начало текущего месяца
+                command = new byte[] { 0x0A, 0x83 };
+                command.CopyTo(cmnd, 0);
+
+                if (tarif >= 0 && tarif <= 8)
+                {
+                    cmnd[2] = (byte)dt.Month;
+                    cmnd[3] = (byte)tarif;
+                    cmnd[4] = 0xF; //маскировочный байт для получения только 00001111 = A+,A-,R+,R-
+                    cmnd[5] = 0;  //резерв        
+
+                    if (SendCommand(cmnd, ref answer, 6, RCURRENT_ANSW_SIZE))
+                    {
+                        for (byte i = 0; i < m_energy; i++)
+                        {
+                            if (i != param) continue;
+
+                            byte[] buff = new byte[4];
+                            buff[0] = answer[1 + 3 + i * 4];
+                            buff[1] = answer[1 + 2 + i * 4];
+                            buff[2] = answer[1 + 1 + i * 4];
+                            buff[3] = answer[1 + 0 + i * 4];
+
+                            if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
+                            {
+                                recordValue = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
+                                return true;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    this.WriteToLog("ReadCurrentValues: неподдерживаемое значение tarif");
+                    return false;
+                }
+            }
+            else
+            {
+                this.WriteToLog("ReadCurrentValues: неподдерживаемое значение param");
+                return false;
+            }
+
+            return false;
+        }
+
+        public bool ReadDailyValues(DateTime dt, ushort param, ushort tarif, ref float recordValue)
+        {
+            //значение dt не требуется при запроса 0x84 
+            if ((m_dt.Year < dt.Year) || (m_dt.Year == dt.Year && m_dt.Month < dt.Month))
+                return false;
+
+            byte[] cmnd = new byte[32];
+            byte[] answer = new byte[RMONTHLY_ANSW_SIZE_BASE + m_energy * 4];
+            byte[] command;
+
+            if (param >= 0 && param <= 3)
+            {
+                //чтение массивов энергии на начало текущего месяца
+                command = new byte[] { 0x0A, 0x84 };
+                command.CopyTo(cmnd, 0);
+
+                if (tarif >= 0 && tarif <= 8)
+                {
+                    cmnd[2] = 0;//при запрсе 84 не актуален 
+                    cmnd[3] = (byte)tarif;
+                    cmnd[4] = 0xF; //маскировочный байт для получения только 00001111 = A+,A-,R+,R-
+                    cmnd[5] = 0;  //резерв        
+
+                    if (SendCommand(cmnd, ref answer, 6, RCURRENT_ANSW_SIZE))
+                    {
+                        for (byte i = 0; i < m_energy; i++)
+                        {
+                            if (i != param) continue;
+
+                            byte[] buff = new byte[4];
+                            buff[0] = answer[1 + 3 + i * 4];
+                            buff[1] = answer[1 + 2 + i * 4];
+                            buff[2] = answer[1 + 1 + i * 4];
+                            buff[3] = answer[1 + 0 + i * 4];
+
+                            if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
+                            {
+                                recordValue = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
+                                return true;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    this.WriteToLog("ReadCurrentValues: неподдерживаемое значение tarif");
+                    return false;
+                }
+            }
+            else
+            {
+                this.WriteToLog("ReadCurrentValues: неподдерживаемое значение param");
+                return false;
+            }
+
+            return false;
+        }
+
+        public bool ReadPowerSlice(DateTime dt_begin, DateTime dt_end, ref List<RecordPowerSlice> listRPS, byte period)
+        {
+            if (ReadPowerSlice(ref listRPS, dt_begin, 30))
+                return true;
+            else
+                return false;
+        }
+
+        public bool SyncTime(DateTime dt)
+        {
+            byte[] cmnd = new byte[32];
+            byte[] answer = new byte[WPARAMS_ANSW_SIZE];
+            byte[] command = new byte[] { 0x03, 0x0D };
+
+            command.CopyTo(cmnd, 0);
+
+            cmnd[2] = (byte)dt.Second;
+            cmnd[3] = (byte)dt.Minute;
+            cmnd[4] = (byte)dt.Hour;
+
+            return SendCommand(cmnd, ref answer, 5, WPARAMS_ANSW_SIZE);
+        }
+
+        public bool ReadSerialNumber(ref string serial_number)
+        {
+            byte[] answer = new byte[RSERIALNUMBER_ANSW_SIZE];
+            byte[] command = new byte[] { 0x08, 0x0 };
+
+            if (!SendCommand(command, ref answer, 2, RSERIALNUMBER_ANSW_SIZE))
+                return false;
+
+            byte[] temp = new byte[4];
+
+            for (int i = 0; i < 4; i++)
+            {
+                temp[i] = answer[4 - i];
+            }
+
+            serial_number = BitConverter.ToUInt32(temp, 0).ToString();
+
+            return true;
+        }
+
+        public List<byte> GetTypesForCategory(CommonCategory common_category)
+        {
+            List<byte> listTypes = new List<byte>();
+
+            switch (common_category)
+            {
+                case CommonCategory.Current:
+                    for (byte type = (byte)TypesValues.Tarif1AP; type <= (byte)TypesValues.Tarif4RM; type++)
+                    {
+                        listTypes.Add(type);
+                    }
+                    for (byte type = (byte)TypesValues.Frequency; type <= (byte)TypesValues.QC; type++)
+                    {
+                        listTypes.Add(type);
+                    }
+                    break;
+                case CommonCategory.Monthly:
+                    for (byte type = (byte)TypesValues.Tarif1AP; type <= (byte)TypesValues.Tarif4RM; type++)
+                    {
+                        listTypes.Add(type);
+                    }
+                    break;
+                case CommonCategory.Inday:
+                    for (byte type = (byte)TypesValues.PowerSliceAP; type <= (byte)TypesValues.PowerSliceRM; type++)
+                    {
+                        listTypes.Add(type);
+                    }
+                    break;
+            }
+
+            return listTypes;
+        }
+
+        public bool OpenLinkCanal()
+        {
+            if (!Open())
+                return false;
+
+            if (!ReadVariantExecute())
+                return false;
+
+            if (!ReadDateTime())
+                return false;
+
+            return true;
+        }
+
+        #endregion
+
+        #region Не используемое
+
+        public bool ReadDailyValues(uint recordId, ushort param, ushort tarif, ref float recordValue)
+        {
+            return false;
+        }
+
+        public bool ReadPowerSlice(ref List<SliceDescriptor> sliceUniversalList, DateTime dt_end, SlicePeriod period)
+        {
+            return false;
+        }
+
+        /// <summary>
+        /// Возвращает дату последней инициализации массива срезов
+        /// </summary>
+        /// <param name="lastInitDt"></param>
+        /// <returns></returns>
+        public bool ReadSliceArrInitializationDate(ref DateTime lastInitDt)
+        {/*
+            const bool WRITE_LOG = true;
+            byte firstRecordIndex = 0;
+            byte lastRecordIndex = 9;
+
+            byte[] cmnd = new byte[32];
+            byte[] answer = new byte[9];
+            byte[] command = new byte[] { 0x04, 0x0A };
+            byte status = 0;
+
+            cmnd[0] = command[0];
+            cmnd[1] = command[1];
+
+            List<DateTime> initJournal = new List<DateTime>(10);
+
+            for (byte i = firstRecordIndex; i <= lastRecordIndex; i++)
+            {
+                cmnd[2] = i;
+
+                if (!SendCommand(cmnd, ref answer, 3, 9, ref status))
+                    return false;
+
+                int year = (int)BCDToByte(answer[6]);
+                int month = (int)BCDToByte(answer[5]);
+                int day = (int)BCDToByte(answer[4]);
+                int hour = (int)BCDToByte(answer[3]);
+                int minute = (int)BCDToByte(answer[2]);
+
+                if (year > 0 && month > 0 && day > 0)
+                    year += 2000;
+                else
+                    continue;
+
+                try
+                {
+                    DateTime dt = new DateTime(year, month, day, hour, minute, 0);
+                    initJournal.Add(dt);
+                }
+                catch (Exception ex)
+                {
+                    WriteToLog("ReadSliceArrInitializationDate: запись " + i.ToString() + "некорректна: " + ex.Message);
+                    continue;
+                }
+            }
+
+            if (initJournal.Count == 0)
+            {
+                WriteToLog("ReadSliceArrInitializationDate: не найдено ни одной записи в журнале инициализации массива");
+                return false;
+            }
+
+            //переберем записанные даты в поисках наиболее свежей
+
+            DateTime latestDt = initJournal[0];
+            byte index = 0;
+            for (byte j = 0; j < initJournal.Count; j++)
+                if (initJournal[j] > latestDt) { latestDt = initJournal[j]; index = j; }
+
+            WriteToLog("ReadSliceArrInitializationDate: выбрана запись " + index.ToString() + ": " + latestDt.ToString(), WRITE_LOG);
+            lastInitDt = latestDt;
+          * */
+            return false;
+        }
+
+        /*
+        public bool ReadCurrentValues(ref Values values)
+        {
+            byte[] cmnd = new byte[32];
+            byte[] answer = new byte[RCURRENT_ANSW_SIZE];
+
+            bool[] already_read_tarif = new bool[4] { false, false, false, false };
+
+            for (int t = 0; t < m_types_for_read_expense.Count; t++)
+            {
+                byte tarif = 0;
+                switch (m_types_for_read_expense[t])
+                {
+                    case (byte)TypesValues.Tarif1AP:
+                    case (byte)TypesValues.Tarif1AM:
+                    case (byte)TypesValues.Tarif1RP:
+                    case (byte)TypesValues.Tarif1RM:
+                        tarif = 1;
+                        break;
+                    case (byte)TypesValues.Tarif2AP:
+                    case (byte)TypesValues.Tarif2AM:
+                    case (byte)TypesValues.Tarif2RP:
+                    case (byte)TypesValues.Tarif2RM:
+                        tarif = 2;
+                        break;
+                    case (byte)TypesValues.Tarif3AP:
+                    case (byte)TypesValues.Tarif3AM:
+                    case (byte)TypesValues.Tarif3RP:
+                    case (byte)TypesValues.Tarif3RM:
+                        tarif = 3;
+                        break;
+                    case (byte)TypesValues.Tarif4AP:
+                    case (byte)TypesValues.Tarif4AM:
+                    case (byte)TypesValues.Tarif4RP:
+                    case (byte)TypesValues.Tarif4RM:
+                        tarif = 4;
+                        break;
+                    default:
+                        continue;
+                }
+
+                if (already_read_tarif[tarif - 1] == true)
+                    continue;
+
+                already_read_tarif[tarif - 1] = true;
+
+                byte[] command = new byte[] { 0x05, 0x0 };
+
+                command.CopyTo(cmnd, 0);
+                cmnd[2] = tarif;
+
+                if (!SendCommand(cmnd, ref answer, 3, RCURRENT_ANSW_SIZE))
+                    continue;
+
+                for (byte i = 0; i < m_energy; i++)
+                {
+                    if (m_types_for_read_expense.Contains(Convert.ToByte(tarif + i))) 
+                    {
+                        RecordValue recordValue;
+                        recordValue.fine_state = false;
+                        recordValue.value = 0;
+                        recordValue.type = Convert.ToByte(tarif + i);
+
+                        byte[] buff = new byte[4];
+                        buff[0] = answer[1 + 3 + i * 4];
+                        buff[1] = answer[1 + 2 + i * 4];
+                        buff[2] = answer[1 + 1 + i * 4];
+                        buff[3] = answer[1 + 0 + i * 4];
+
+                        if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
+                        {
+                            recordValue.fine_state = true;
+                            recordValue.value = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
+                        }
+
+                        values.listRV.Add(recordValue);
+                    }
+                }
+            }
+
+           // PowerQualityParams(ref values);
+
+            return true;
+        }
+         * 
+         * */
 
         /*
         /// <summary>
@@ -937,789 +1668,9 @@ namespace Drivers
         }
         */
 
-        public bool ReadPowerSlice(ref List<RecordPowerSlice> listRPS, DateTime dt_begin, byte period)
-        {
-            try
-            {
-                // читаем последний срез
-                LastPowerSlice lps = new LastPowerSlice();
-                if (!ReadCurrentPowerSliceInfo(ref lps))
-                {
-                    return false;
-                }
-
-                // Вычисляем разницу в часах
-                TimeSpan span = lps.dt - dt_begin;
-                int diff_hours = Convert.ToInt32(span.TotalHours);
-
-                // если разница > max кол-ва хранящихся записей в счётчике, то не вычитываем их из счётчика
-                if (diff_hours >= m_depth_storage_power_slices)
-                {
-                    diff_hours = m_depth_storage_power_slices;
-                }
-
-                if (diff_hours > (lps.addr / 24))
-                {
-                    diff_hours = lps.addr / 24;
-                }
-
-                //WriteToLog("differense hours=" + diff_hours.ToString() + "; reload=" + lps.reload.ToString() + "; dt_begin=" + dt_begin.ToString());
-                List<RecordPowerSlice> lRPS = new List<RecordPowerSlice>();
-
-                for (int i = diff_hours; i > 0; i--)
-                {
-                    int add_minus_val = (lps.dt.Minute == 0) ? 8 : 16;
-                    int addr = lps.addr - Convert.ToUInt16(m_size_record_power_slices * i) - (ushort)add_minus_val;
-                    ushort address_slice = (addr < 0) ? Convert.ToUInt16(Convert.ToInt32(65536 + addr)) : Convert.ToUInt16(addr);
-
-                    // чтение среза по рассчитанному адресу и при чтении не было ошибок
-
-                    List<IndaySlice> record_slices = new List<IndaySlice>();
-                    if (ReadSlice((ushort)address_slice, ref record_slices, period))
-                    {
-                        foreach (IndaySlice ids in record_slices)
-                        {
-                            RecordPowerSlice rps = new RecordPowerSlice();
-                            rps.APlus = (float)ids.values[0].value;
-                            rps.AMinus = (float)ids.values[1].value;
-                            rps.RPlus = (float)ids.values[2].value;
-                            rps.RMinus = (float)ids.values[3].value;
-                            rps.status = Convert.ToByte(!ids.not_full);
-                            rps.date_time = ids.date_time;
-                            rps.period = 30;
-                            lRPS.Add(rps);
-                        }
-                    }
-                    else
-                    {
-                        WriteToLog("ReadPowerSlice: slice has not been read");
-                        break;
-                    }
-                }
-
-                if (lRPS.Count > 0)
-                {
-                    listRPS = lRPS;
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                WriteToLog("ReadPowerSlice: " + ex.Message);
-                return false;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Чтение среза мощности по указанному адресу
-        /// </summary>
-        /// <param name="addr_slice"></param>
-        /// <param name="record_slice"></param>
-        /// <param name="period"></param>
-        /// <returns></returns>
-        private bool ReadSlice(ushort addr_slice, ref List<IndaySlice> record_slices, byte period)
-        {
-            if (period != m_period_int_power_slices)
-            {
-                return false;
-            }
-
-            byte[] cmnd = new byte[32];
-            byte[] answer = new byte[RSLICE_ANSW_SIZE_MIN + m_size_record_power_slices];
-            byte[] command = new byte[] { 0x06, 0x03 };
-            byte[] addr = new byte[2];
-
-            cmnd[0] = command[0];
-            cmnd[1] = command[1];
-            addr = BitConverter.GetBytes(addr_slice);
-            cmnd[2] = addr[1];
-            cmnd[3] = addr[0];
-            cmnd[4] = m_size_record_power_slices;
-
-            bool read_ok = false;
-
-            int p = 0;
-            do
-            {
-                if (SendCommand(cmnd, ref answer, 5, Convert.ToUInt16(RSLICE_ANSW_SIZE_MIN + m_size_record_power_slices)))
-                {
-                    read_ok = true;
-                    break;
-                }
-            } while (p++ < 3);
-
-            //WriteToLog("Request: " + BitConverter.ToString(m_cmd));
-            //WriteToLog("ReadSlice: " + BitConverter.ToString(answer));
-
-            if (read_ok)
-            {
-                try
-                {
-                    // проверка периода интегрирования
-                    if (answer[6] == m_period_int_power_slices)
-                    {
-                        // время записи среза
-                        int hour = CommonMeters.DEC2HEX(answer[1]);
-                        int day = CommonMeters.DEC2HEX(answer[2]);
-                        int month = CommonMeters.DEC2HEX(answer[3]);
-                        int year = CommonMeters.DEC2HEX(answer[4]) + 2000;
-
-                        WriteToLog("ReadSlice address: " + m_address.ToString() + "; datetime: hour=" + hour.ToString() + " day=" + day.ToString() + " month=" + month.ToString() + " year=" + year.ToString());
-
-                        byte[] slices_data = new byte[16];
-
-                        for (int b = 0; b < slices_data.Length; b++)
-                        {
-                            slices_data[b] = answer[9 + b];
-                        }
-
-                        for (int j = 0; j < 60 / m_period_int_power_slices; j++)
-                        {
-                            IndaySlice rps = new IndaySlice();
-                            rps.values = new List<RecordValue>();
-                            // Время среза
-                            rps.date_time = new DateTime(year, month, day, hour, j * 30, 0);
-                            // Неполный срез
-                            rps.not_full = (Convert.ToByte(slices_data[0] >> 7) == 1) ? true : false;
-
-                            WriteToLog("ReadSlice: datetime " + rps.date_time.ToString() + "; status " + rps.not_full.ToString());
-
-                            // Разбираем по видам энергии
-                            for (int i = 0; i < 4; i++)
-                            {
-                                byte type = 0;
-                                switch (i)
-                                {
-                                    case 0:
-                                        type = (byte)TypesValues.PowerSliceAP;
-                                        break;
-                                    case 1:
-                                        type = (byte)TypesValues.PowerSliceAM;
-                                        break;
-                                    case 2:
-                                        type = (byte)TypesValues.PowerSliceRP;
-                                        break;
-                                    case 3:
-                                        type = (byte)TypesValues.PowerSliceRM;
-                                        break;
-                                }
-                                RecordValue rv;
-                                rv.type = type;
-                                rv.fine_state = false;
-                                rv.value = 0;
-
-                                byte[] buff = new byte[2];
-                                buff[0] = slices_data[j * 8 + i * 2 + 1];
-                                buff[1] = Convert.ToByte(slices_data[j * 8 + i * 2 + 0] & 0x7F);
-
-                                rv.value = Math.Round((Convert.ToSingle(Convert.ToSingle(BitConverter.ToUInt16(buff, 0)) / (2f * (float)m_gear_ratio)) * (60 / m_period_int_power_slices)) / 2f, 4);//n/2a*60/period
-                                rv.fine_state = true;
-
-                                rps.values.Add(rv);
-                            }
-
-                            record_slices.Add(rps);
-                        }
-                    }
-                    else
-                    {
-                        WriteToLog("Wrong period integr: target = " + m_period_int_power_slices.ToString() + "; from answer=" + answer[6].ToString());
-                    }
-                }
-                catch (Exception ex)
-                {
-                    WriteToLog("ReadSlice - " + ex.Message);
-                    return false;
-                }
-            }
-
-            return read_ok;
-        }
-
-        /// <summary>
-        /// Чтение информации о последнем зафиксированнрм счетчиком среза
-        /// </summary>
-        /// <param name="lps"></param>
-        /// <returns></returns>
-        private bool ReadCurrentPowerSliceInfo(ref LastPowerSlice lps)
-        {
-            byte[] answer = new byte[RLASTSLICE_ANSW_SIZE];
-            byte[] command = new byte[] { 0x08, 0x4 };
-
-            // Читаем последний срез мощности для определения адреса физической памяти последней записи массива
-            if (!SendCommand(command, ref answer, 2, RLASTSLICE_ANSW_SIZE))
-                return false;
-
-            try
-            {
-                byte[] temp = new byte[2] { answer[7], answer[6] };
-
-                // адрес последней записи
-                lps.addr = BitConverter.ToUInt16(temp, 0);
-
-                // признак перезаписи области профиля
-                lps.reload = ((answer[1] & 0x80) == 0x80) ? true : false;
-
-                // конвертируем время из DEC в HEX 
-                int minute = CommonMeters.DEC2HEX(Convert.ToByte(answer[1] & 0x7F));
-                int hour = CommonMeters.DEC2HEX(answer[2]);
-                int day = CommonMeters.DEC2HEX(answer[3]);
-                int month = CommonMeters.DEC2HEX(answer[4]);
-                int year = CommonMeters.DEC2HEX(answer[5]) + 2000;
-
-                //minute = (minute > 15 && minute < 45) ? 30 : 00;
-
-                //WriteToLog("ReadCurrentPowerSliceInfo datetime: minute" + answer[1].ToString("x") + " hour=" + hour.ToString() + " day=" + day.ToString() + " month=" + month.ToString() + " year=" + year.ToString());
-
-                lps.dt = new DateTime(year, month, day, hour, minute, 0);
-
-                //WriteToLog("Last power slice: Reload=" + lps.reload.ToString() +
-                //                            "; Address=" + lps.addr.ToString() +
-                //                            "; Datetime=" + lps.dt.ToShortDateString() + " " + lps.dt.ToShortTimeString());
-            }
-            catch (Exception ex)
-            {
-                WriteToLog("ReadCurrentPowerSliceInfo - " + ex.Message);
-                return false;
-            }
-            return true;
-        }
-
-        /*
-        public bool ReadCurrentValues(ref Values values)
-        {
-            byte[] cmnd = new byte[32];
-            byte[] answer = new byte[RCURRENT_ANSW_SIZE];
-
-            bool[] already_read_tarif = new bool[4] { false, false, false, false };
-
-            for (int t = 0; t < m_types_for_read_expense.Count; t++)
-            {
-                byte tarif = 0;
-                switch (m_types_for_read_expense[t])
-                {
-                    case (byte)TypesValues.Tarif1AP:
-                    case (byte)TypesValues.Tarif1AM:
-                    case (byte)TypesValues.Tarif1RP:
-                    case (byte)TypesValues.Tarif1RM:
-                        tarif = 1;
-                        break;
-                    case (byte)TypesValues.Tarif2AP:
-                    case (byte)TypesValues.Tarif2AM:
-                    case (byte)TypesValues.Tarif2RP:
-                    case (byte)TypesValues.Tarif2RM:
-                        tarif = 2;
-                        break;
-                    case (byte)TypesValues.Tarif3AP:
-                    case (byte)TypesValues.Tarif3AM:
-                    case (byte)TypesValues.Tarif3RP:
-                    case (byte)TypesValues.Tarif3RM:
-                        tarif = 3;
-                        break;
-                    case (byte)TypesValues.Tarif4AP:
-                    case (byte)TypesValues.Tarif4AM:
-                    case (byte)TypesValues.Tarif4RP:
-                    case (byte)TypesValues.Tarif4RM:
-                        tarif = 4;
-                        break;
-                    default:
-                        continue;
-                }
-
-                if (already_read_tarif[tarif - 1] == true)
-                    continue;
-
-                already_read_tarif[tarif - 1] = true;
-
-                byte[] command = new byte[] { 0x05, 0x0 };
-
-                command.CopyTo(cmnd, 0);
-                cmnd[2] = tarif;
-
-                if (!SendCommand(cmnd, ref answer, 3, RCURRENT_ANSW_SIZE))
-                    continue;
-
-                for (byte i = 0; i < m_energy; i++)
-                {
-                    if (m_types_for_read_expense.Contains(Convert.ToByte(tarif + i))) 
-                    {
-                        RecordValue recordValue;
-                        recordValue.fine_state = false;
-                        recordValue.value = 0;
-                        recordValue.type = Convert.ToByte(tarif + i);
-
-                        byte[] buff = new byte[4];
-                        buff[0] = answer[1 + 3 + i * 4];
-                        buff[1] = answer[1 + 2 + i * 4];
-                        buff[2] = answer[1 + 1 + i * 4];
-                        buff[3] = answer[1 + 0 + i * 4];
-
-                        if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
-                        {
-                            recordValue.fine_state = true;
-                            recordValue.value = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
-                        }
-
-                        values.listRV.Add(recordValue);
-                    }
-                }
-            }
-
-           // PowerQualityParams(ref values);
-
-            return true;
-        }
-         * 
-         * */
-
-        public bool ReadMonthlyValues(byte month, ushort year, ref Values values)
-        {
-            if ((m_dt.Year < year) || (m_dt.Year == year && m_dt.Month < month))
-            {
-                return false;
-            }
-
-            byte[] cmnd = new byte[32];
-            byte[] answer = new byte[RMONTHLY_ANSW_SIZE_BASE + m_energy * 4];
-
-            bool[] already_read_tarif = new bool[4] { false, false, false, false };
-
-            for (int t = 0; t < m_types_for_read_expense.Count; t++)
-            {
-                byte tarif = 0;
-                switch (m_types_for_read_expense[t])
-                {
-                    case (byte)TypesValues.Tarif1AP:
-                    case (byte)TypesValues.Tarif1AM:
-                    case (byte)TypesValues.Tarif1RP:
-                    case (byte)TypesValues.Tarif1RM:
-                        tarif = 1;
-                        break;
-                    case (byte)TypesValues.Tarif2AP:
-                    case (byte)TypesValues.Tarif2AM:
-                    case (byte)TypesValues.Tarif2RP:
-                    case (byte)TypesValues.Tarif2RM:
-                        tarif = 2;
-                        break;
-                    case (byte)TypesValues.Tarif3AP:
-                    case (byte)TypesValues.Tarif3AM:
-                    case (byte)TypesValues.Tarif3RP:
-                    case (byte)TypesValues.Tarif3RM:
-                        tarif = 3;
-                        break;
-                    case (byte)TypesValues.Tarif4AP:
-                    case (byte)TypesValues.Tarif4AM:
-                    case (byte)TypesValues.Tarif4RP:
-                    case (byte)TypesValues.Tarif4RM:
-                        tarif = 4;
-                        break;
-                    default:
-                        continue;
-                }
-
-                if (already_read_tarif[tarif - 1] == true)
-                    continue;
-
-                already_read_tarif[tarif - 1] = true;
-
-                byte[] command = new byte[] { 0x0A, 0x83 };
-
-                command.CopyTo(cmnd, 0);
-                cmnd[2] = month;
-                cmnd[3] = tarif;
-                cmnd[4] = 0xF;//A+;A-;R+;R-
-                cmnd[5] = 0;
-
-                if (!SendCommand(cmnd, ref answer, 6, RMONTHLY_ANSW_SIZE_BASE + m_energy * 4))
-                    continue;
-
-                for (byte i = 0; i < m_energy; i++)
-                {
-                    if (m_types_for_read_expense.Contains(Convert.ToByte(tarif + i))) // + вид энергии: 0-A+;1-A-;2-R+;3-R-
-                    {
-                        RecordValue recordValue;
-                        recordValue.fine_state = false;
-                        recordValue.value = 0;
-                        recordValue.type = Convert.ToByte(tarif + i);
-
-                        byte[] buff = new byte[4];
-                        buff[0] = answer[1 + 3 + i * 4];
-                        buff[1] = answer[1 + 2 + i * 4];
-                        buff[2] = answer[1 + 1 + i * 4];
-                        buff[3] = answer[1 + 0 + i * 4];
-
-                        if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
-                        {
-                            recordValue.fine_state = true;
-                            recordValue.value = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
-                        }
-
-                        values.listRV.Add(recordValue);
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        public bool ReadDailyValues(byte day, byte month, ushort year, ref Values values)
-        {
-            return false;
-        }
-
-        /// <summary>
-        /// Возвращает дату последней инициализации массива срезов
-        /// </summary>
-        /// <param name="lastInitDt"></param>
-        /// <returns></returns>
-        public bool ReadSliceArrInitializationDate(ref DateTime lastInitDt)
-        {/*
-            const bool WRITE_LOG = true;
-            byte firstRecordIndex = 0;
-            byte lastRecordIndex = 9;
-
-            byte[] cmnd = new byte[32];
-            byte[] answer = new byte[9];
-            byte[] command = new byte[] { 0x04, 0x0A };
-            byte status = 0;
-
-            cmnd[0] = command[0];
-            cmnd[1] = command[1];
-
-            List<DateTime> initJournal = new List<DateTime>(10);
-
-            for (byte i = firstRecordIndex; i <= lastRecordIndex; i++)
-            {
-                cmnd[2] = i;
-
-                if (!SendCommand(cmnd, ref answer, 3, 9, ref status))
-                    return false;
-
-                int year = (int)BCDToByte(answer[6]);
-                int month = (int)BCDToByte(answer[5]);
-                int day = (int)BCDToByte(answer[4]);
-                int hour = (int)BCDToByte(answer[3]);
-                int minute = (int)BCDToByte(answer[2]);
-
-                if (year > 0 && month > 0 && day > 0)
-                    year += 2000;
-                else
-                    continue;
-
-                try
-                {
-                    DateTime dt = new DateTime(year, month, day, hour, minute, 0);
-                    initJournal.Add(dt);
-                }
-                catch (Exception ex)
-                {
-                    WriteToLog("ReadSliceArrInitializationDate: запись " + i.ToString() + "некорректна: " + ex.Message);
-                    continue;
-                }
-            }
-
-            if (initJournal.Count == 0)
-            {
-                WriteToLog("ReadSliceArrInitializationDate: не найдено ни одной записи в журнале инициализации массива");
-                return false;
-            }
-
-            //переберем записанные даты в поисках наиболее свежей
-
-            DateTime latestDt = initJournal[0];
-            byte index = 0;
-            for (byte j = 0; j < initJournal.Count; j++)
-                if (initJournal[j] > latestDt) { latestDt = initJournal[j]; index = j; }
-
-            WriteToLog("ReadSliceArrInitializationDate: выбрана запись " + index.ToString() + ": " + latestDt.ToString(), WRITE_LOG);
-            lastInitDt = latestDt;
-          * */
-            return false;
-        }
-
-        #region Реализация методов интерфейса
-
-        public bool ReadCurrentValues(ushort param, ushort tarif, ref float recordValue)
-        {
-            byte[] cmnd = new byte[32];
-            byte[] answer = new byte[RCURRENT_ANSW_SIZE];
-            byte[] command;
-
-            if (param >= 0 && param <= 3)
-            {
-                //чтение массивов энергии от сброса
-                command = new byte[] { 0x05, 0x0 };
-                command.CopyTo(cmnd, 0);
-
-                if (tarif >= 0 && tarif <= 8)
-                {
-                    cmnd[2] = (byte)tarif;
-
-                    if (SendCommand(cmnd, ref answer, 3, RCURRENT_ANSW_SIZE))
-                    {
-                        for (byte i = 0; i < m_energy; i++)
-                        {
-                            if (i != param) continue;
-
-                            byte[] buff = new byte[4];
-                            buff[0] = answer[1 + 3 + i * 4];
-                            buff[1] = answer[1 + 2 + i * 4];
-                            buff[2] = answer[1 + 1 + i * 4];
-                            buff[3] = answer[1 + 0 + i * 4];
-
-                            if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
-                            {
-                                recordValue = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
-                                return true;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    this.WriteToLog("ReadCurrentValues: неподдерживаемое значение tarif");
-                    return false;
-                }
-            }
-            else if (param >= 5 && param <= 8)
-            {
-                return ReadAuxilaryParams(param, (byte)tarif, ref recordValue);
-            }
-            else
-            {
-                this.WriteToLog("ReadCurrentValues: неподдерживаемое значение param");
-                return false;
-            }
-
-
-
-
-
-            return false;
-        }
-
-        public bool ReadMonthlyValues(DateTime dt, ushort param, ushort tarif, ref float recordValue)
-        {
-            if ((m_dt.Year < dt.Year) || (m_dt.Year == dt.Year && m_dt.Month < dt.Month))
-                return false;
-
-            byte[] cmnd = new byte[32];
-            byte[] answer = new byte[RMONTHLY_ANSW_SIZE_BASE + m_energy * 4];
-            byte[] command;
-
-            if (param >= 0 && param <= 3)
-            {
-                //чтение массивов энергии на начало текущего месяца
-                command = new byte[] { 0x0A, 0x83 };
-                command.CopyTo(cmnd, 0);
-
-                if (tarif >= 0 && tarif <= 8)
-                {
-                    cmnd[2] = (byte)dt.Month;
-                    cmnd[3] = (byte)tarif;
-                    cmnd[4] = 0xF; //маскировочный байт для получения только 00001111 = A+,A-,R+,R-
-                    cmnd[5] = 0;  //резерв        
-
-                    if (SendCommand(cmnd, ref answer, 6, RCURRENT_ANSW_SIZE))
-                    {
-                        for (byte i = 0; i < m_energy; i++)
-                        {
-                            if (i != param) continue;
-
-                            byte[] buff = new byte[4];
-                            buff[0] = answer[1 + 3 + i * 4];
-                            buff[1] = answer[1 + 2 + i * 4];
-                            buff[2] = answer[1 + 1 + i * 4];
-                            buff[3] = answer[1 + 0 + i * 4];
-
-                            if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
-                            {
-                                recordValue = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
-                                return true;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    this.WriteToLog("ReadCurrentValues: неподдерживаемое значение tarif");
-                    return false;
-                }
-            }
-            else
-            {
-                this.WriteToLog("ReadCurrentValues: неподдерживаемое значение param");
-                return false;
-            }
-
-            return false;
-        }
-
-        public bool ReadDailyValues(DateTime dt, ushort param, ushort tarif, ref float recordValue)
-        {
-            //значение dt не требуется при запроса 0x84 
-            if ((m_dt.Year < dt.Year) || (m_dt.Year == dt.Year && m_dt.Month < dt.Month))
-                return false;
-
-            byte[] cmnd = new byte[32];
-            byte[] answer = new byte[RMONTHLY_ANSW_SIZE_BASE + m_energy * 4];
-            byte[] command;
-
-            if (param >= 0 && param <= 3)
-            {
-                //чтение массивов энергии на начало текущего месяца
-                command = new byte[] { 0x0A, 0x84 };
-                command.CopyTo(cmnd, 0);
-
-                if (tarif >= 0 && tarif <= 8)
-                {
-                    cmnd[2] = 0;//при запрсе 84 не актуален 
-                    cmnd[3] = (byte)tarif;
-                    cmnd[4] = 0xF; //маскировочный байт для получения только 00001111 = A+,A-,R+,R-
-                    cmnd[5] = 0;  //резерв        
-
-                    if (SendCommand(cmnd, ref answer, 6, RCURRENT_ANSW_SIZE))
-                    {
-                        for (byte i = 0; i < m_energy; i++)
-                        {
-                            if (i != param) continue;
-
-                            byte[] buff = new byte[4];
-                            buff[0] = answer[1 + 3 + i * 4];
-                            buff[1] = answer[1 + 2 + i * 4];
-                            buff[2] = answer[1 + 1 + i * 4];
-                            buff[3] = answer[1 + 0 + i * 4];
-
-                            if (buff[0] != 0xFF & buff[1] != 0xFF & buff[2] != 0xFF & buff[3] != 0xFF)
-                            {
-                                recordValue = Convert.ToSingle(BitConverter.ToUInt32(buff, 0)) / (2f * (float)m_gear_ratio);//1000f;//Вт -> кВт
-                                return true;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    this.WriteToLog("ReadCurrentValues: неподдерживаемое значение tarif");
-                    return false;
-                }
-            }
-            else
-            {
-                this.WriteToLog("ReadCurrentValues: неподдерживаемое значение param");
-                return false;
-            }
-
-            return false;
-        }
-
-        public bool ReadPowerSlice(DateTime dt_begin, DateTime dt_end, ref List<RecordPowerSlice> listRPS, byte period)
-        {
-            if (ReadPowerSlice(ref listRPS, dt_begin, 30))
-                return true;
-            else
-                return false;
-        }
-
-
-        public bool SyncTime(DateTime dt)
-        {
-            byte[] cmnd = new byte[32];
-            byte[] answer = new byte[WPARAMS_ANSW_SIZE];
-            byte[] command = new byte[] { 0x03, 0x0D };
-
-            command.CopyTo(cmnd, 0);
-
-            cmnd[2] = (byte)dt.Second;
-            cmnd[3] = (byte)dt.Minute;
-            cmnd[4] = (byte)dt.Hour;
-
-            return SendCommand(cmnd, ref answer, 5, WPARAMS_ANSW_SIZE);
-        }
-
-        public bool ReadSerialNumber(ref string serial_number)
-        {
-            byte[] answer = new byte[RSERIALNUMBER_ANSW_SIZE];
-            byte[] command = new byte[] { 0x08, 0x0 };
-
-            if (!SendCommand(command, ref answer, 2, RSERIALNUMBER_ANSW_SIZE))
-                return false;
-
-            byte[] temp = new byte[4];
-
-            for (int i = 0; i < 4; i++)
-            {
-                temp[i] = answer[4 - i];
-            }
-
-            serial_number = BitConverter.ToUInt32(temp, 0).ToString();
-
-            return true;
-        }
-
-        public List<byte> GetTypesForCategory(CommonCategory common_category)
-        {
-            List<byte> listTypes = new List<byte>();
-
-            switch (common_category)
-            {
-                case CommonCategory.Current:
-                    for (byte type = (byte)TypesValues.Tarif1AP; type <= (byte)TypesValues.Tarif4RM; type++)
-                    {
-                        listTypes.Add(type);
-                    }
-                    for (byte type = (byte)TypesValues.Frequency; type <= (byte)TypesValues.QC; type++)
-                    {
-                        listTypes.Add(type);
-                    }
-                    break;
-                case CommonCategory.Monthly:
-                    for (byte type = (byte)TypesValues.Tarif1AP; type <= (byte)TypesValues.Tarif4RM; type++)
-                    {
-                        listTypes.Add(type);
-                    }
-                    break;
-                case CommonCategory.Inday:
-                    for (byte type = (byte)TypesValues.PowerSliceAP; type <= (byte)TypesValues.PowerSliceRM; type++)
-                    {
-                        listTypes.Add(type);
-                    }
-                    break;
-            }
-
-            return listTypes;
-        }
-
-        public bool OpenLinkCanal()
-        {
-            if (!Open())
-                return false;
-
-            if (!ReadVariantExecute())
-                return false;
-
-            if (!ReadDateTime())
-                return false;
-
-            return true;
-        }
-
         #endregion
 
 
-
-        public bool ReadDailyValues(uint recordId, ushort param, ushort tarif, ref float recordValue)
-        {
-            return false;
-        }
-
-
-        public bool ReadPowerSlice(ref List<SliceDescriptor> sliceUniversalList, DateTime dt_end, SlicePeriod period)
-        {
-            return false;
-        }
     }
 
     public static class CommonMeters

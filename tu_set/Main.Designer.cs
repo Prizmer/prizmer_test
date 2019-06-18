@@ -58,7 +58,7 @@
             this.ctlMeters1.EnableMonthly = true;
             this.ctlMeters1.Location = new System.Drawing.Point(308, 12);
             this.ctlMeters1.Name = "ctlMeters1";
-            this.ctlMeters1.PasswordMeter = "333333";
+            this.ctlMeters1.PasswordMeter = "000000";
             this.ctlMeters1.Size = new System.Drawing.Size(898, 268);
             this.ctlMeters1.TabIndex = 1;
             // 
