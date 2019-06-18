@@ -217,14 +217,16 @@ namespace Drivers
 
         #endregion
 
+        LibCRC crcLib = new LibCRC();
+        const string CRC_ALG_NAME = "crc16ModBus";
+
         public SET4tmDriver()
         {
             m_depth_storage_power_slices = Convert.ToUInt16(m_max_records_power_slices / (60 / m_period_int_power_slices + 1));
             m_size_record_power_slices = (60 / m_period_int_power_slices + 1) * 8;
+
         }
 
-        LibCRC crcLib = new LibCRC();
-        const string CRC_ALG_NAME = "crc16ModBus";
 
 
 
@@ -984,12 +986,15 @@ namespace Drivers
             {
                 byte[] array = new byte[queue.Count];
                 array = queue.ToArray();
+                Array.Reverse(array);
 
                 byte[] resCRC = null;
                 if (crcLib.GetCRCFromByteArr(array, CRC_ALG_NAME, ref resCRC))
                 {
                     if (resCRC != null && resCRC[0] == 0 && resCRC[1] == 0)
+                    {
                         return 1; // crc = 0 0, успех
+                    }
                 }
 
                 return -1;
