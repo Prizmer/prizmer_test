@@ -54,19 +54,20 @@
             this.ctlMeters1.EnableCurrent = true;
             this.ctlMeters1.Enabled = false;
             this.ctlMeters1.EnableDaily = true;
-            this.ctlMeters1.EnableHalfs = false;
+            this.ctlMeters1.EnableHalfs = true;
             this.ctlMeters1.EnableMonthly = true;
             this.ctlMeters1.Location = new System.Drawing.Point(308, 12);
             this.ctlMeters1.Name = "ctlMeters1";
             this.ctlMeters1.PasswordMeter = "000000";
-            this.ctlMeters1.Size = new System.Drawing.Size(898, 268);
+            this.ctlMeters1.Size = new System.Drawing.Size(930, 268);
             this.ctlMeters1.TabIndex = 1;
+            this.ctlMeters1.Load += new System.EventHandler(this.ctlMeters1_Load);
             // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1206, 416);
+            this.ClientSize = new System.Drawing.Size(1239, 416);
             this.Controls.Add(this.ctlConnectionSettings1);
             this.Controls.Add(this.ctlMeters1);
             this.Name = "Main";

@@ -37,5 +37,10 @@ namespace tu_SET
                 ctlMeters1.Enabled = false;
             }
         }
+
+        private void ctlMeters1_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 }
