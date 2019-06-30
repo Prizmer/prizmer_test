@@ -45,13 +45,20 @@ namespace tu_SET
 
         private void btnTest_Click(object sender, EventArgs e)
         {
-            SET4tmDriver driver = new SET4tmDriver();
-            List<Drivers.LibMeter.RecordPowerSlice> rps = new List<Drivers.LibMeter.RecordPowerSlice>();
+            //SET4tmDriver driver = new SET4tmDriver();
+            //List<Drivers.LibMeter.RecordPowerSlice> rps = new List<Drivers.LibMeter.RecordPowerSlice>();
 
-            DateTime dtNow = DateTime.Now.Date;
-            DateTime dt = new DateTime(dtNow.Year, dtNow.Month, dtNow.Day, 20, 30, 00);
+            //DateTime dtNow = DateTime.Now.Date;
+            //DateTime dt = new DateTime(dtNow.Year, dtNow.Month, dtNow.Day, 20, 30, 00);
 
-            driver.ReadPowerSlice(ref rps, dt, 30);
+            //driver.ReadPowerSlice(ref rps, dt, 30);
+
+            byte[] temp = new byte[2] { 0x01, 0x99};
+
+            // адрес последней записи
+            int tmp = BitConverter.ToUInt16(temp, 0);
+
+
         }
     }
 }

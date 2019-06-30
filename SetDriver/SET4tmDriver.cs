@@ -607,7 +607,7 @@ namespace Drivers
             }
         }
 
-        public bool ReadPowerSlice(ref List<RecordPowerSlice> listRPS, DateTime dt_begin, byte period)
+        public bool ReadPowerSlice(ref List<RecordPowerSlice> listRPS, DateTime dt_begin, DateTime dt_end, byte period = 30)
         {
             string msg = "";
             try
@@ -632,15 +632,25 @@ namespace Drivers
                 msg = $"ReadPowerSlice: последний срез за {lps.dt.ToString()}, адрес: {lps.addr}, переполнение: {lps.reload}";
                 WriteToLog(msg);
 
+                //DateTime dateEnd = dt_end;
+                //if (dateEnd > lps.dt)
+                //{
+                //    msg = $"ReadPowerSlice: дата, по которую читаем получасовки {dateEnd.ToString()} больше даты последнего среза {lps.dt.ToString()}. Срезы будут считаны по эту дату.";
+                //    dateEnd = lps.dt;           
+                //    WriteToLog(msg);
+                //}
+
                 // Вычисляем разницу в часах
                 TimeSpan span = lps.dt - dt_begin;
                 double diff_minutes = span.TotalMinutes;
                 double diff_halfs = diff_minutes / 30;
-                int cntHalfsToRead = (int)Math.Ceiling(diff_halfs);
+                double diff_records_to_read = diff_halfs / 2;
 
+                int cntHalfsToRead = (int)Math.Ceiling(diff_halfs);
+                int cntRecsToRead = (int)Math.Ceiling(diff_records_to_read);
                 //int diff_hours = Convert.ToInt32(span.TotalHours);
- 
-                msg = $"ReadPowerSlice: между датой начала чтения и последним срезом {cntHalfsToRead} получасовых значений";
+
+                msg = $"ReadPowerSlice: между датой начала чтения и последним срезом {cntHalfsToRead} получасовых значений и нужно прочитать {cntRecsToRead} записей";
                 WriteToLog(msg);
 
                 // если разница > max кол-ва хранящихся записей в счётчике, то не вычитываем их из счётчика
@@ -665,7 +675,7 @@ namespace Drivers
                 //WriteToLog("differense hours=" + diff_hours.ToString() + "; reload=" + lps.reload.ToString() + "; dt_begin=" + dt_begin.ToString());
                 List<RecordPowerSlice> lRPS = new List<RecordPowerSlice>();
 
-                for (int i = cntHalfsToRead; i > 0; i--)
+                for (int i = cntRecsToRead; i > 0; i--)
                 {
                     int add_minus_val = (lps.dt.Minute == 0) ? 8 : 16;
                     int addr = lps.addr - Convert.ToUInt16(m_size_record_power_slices * i) - (ushort)add_minus_val;
@@ -699,6 +709,8 @@ namespace Drivers
                 {
                     listRPS = lRPS;
                     return true;
+                } else {
+                    WriteToLog($"ReadPowerSlice: listRPS.count={listRPS.Count}");
                 }
             }
             catch (Exception ex)
@@ -1198,7 +1210,7 @@ namespace Drivers
 
         public bool ReadPowerSlice(DateTime dt_begin, DateTime dt_end, ref List<RecordPowerSlice> listRPS, byte period)
         {
-            return ReadPowerSlice(ref listRPS, dt_begin, 30);
+            return ReadPowerSlice(ref listRPS, dt_begin, dt_end, 30);
         }
 
         public bool SyncTime(DateTime dt)
