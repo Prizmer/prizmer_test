@@ -647,7 +647,7 @@ namespace Drivers
                 double diff_records_to_read = diff_halfs / 2;
 
                 int cntHalfsToRead = (int)Math.Ceiling(diff_halfs);
-                int cntRecsToRead = (int)Math.Ceiling(diff_records_to_read) - 1;
+                int cntRecsToRead = (int)Math.Ceiling(diff_records_to_read);
                 //int diff_hours = Convert.ToInt32(span.TotalHours);
 
                 msg = $"ReadPowerSlice: между датой начала чтения и последним срезом {cntHalfsToRead} получасовых значений и нужно прочитать {cntRecsToRead} записей";
@@ -675,7 +675,7 @@ namespace Drivers
                 //WriteToLog("differense hours=" + diff_hours.ToString() + "; reload=" + lps.reload.ToString() + "; dt_begin=" + dt_begin.ToString());
                 List<RecordPowerSlice> lRPS = new List<RecordPowerSlice>();
 
-                for (int i = cntRecsToRead; i > 0; i--)
+                for (int i = cntRecsToRead; i >= 0; i--)
                 {
                     int add_minus_val = (lps.dt.Minute == 0) ? 8 : 16;
                     int addr = lps.addr - Convert.ToUInt16(m_size_record_power_slices * i) - (ushort)add_minus_val;
