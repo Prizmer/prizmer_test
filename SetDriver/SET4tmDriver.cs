@@ -675,7 +675,7 @@ namespace Drivers
                 //WriteToLog("differense hours=" + diff_hours.ToString() + "; reload=" + lps.reload.ToString() + "; dt_begin=" + dt_begin.ToString());
                 List<RecordPowerSlice> lRPS = new List<RecordPowerSlice>();
 
-                for (int i = cntRecsToRead; i >= 0; i--)
+                for (int i = cntRecsToRead - 1; i >= 0; i--)
                 {
                     int add_minus_val = (lps.dt.Minute == 0) ? 8 : 16;
                     int addr = lps.addr - Convert.ToUInt16(m_size_record_power_slices * i) - (ushort)add_minus_val;
