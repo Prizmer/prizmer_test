@@ -647,7 +647,7 @@ namespace Drivers
                 double diff_records_to_read = diff_halfs / 2;
 
                 int cntHalfsToRead = (int)Math.Ceiling(diff_halfs);
-                int cntRecsToRead = (int)Math.Ceiling(diff_records_to_read);
+                int cntRecsToRead = (int)Math.Ceiling(diff_records_to_read) - 1;
                 //int diff_hours = Convert.ToInt32(span.TotalHours);
 
                 msg = $"ReadPowerSlice: между датой начала чтения и последним срезом {cntHalfsToRead} получасовых значений и нужно прочитать {cntRecsToRead} записей";
