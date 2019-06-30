@@ -122,8 +122,12 @@ namespace Drivers
         private const byte min_answer_length = 4;
         private const byte m_period_int_power_slices = 30;
         private const ushort m_max_records_power_slices = 8192;
-        private readonly ushort m_depth_storage_power_slices = 0;
-        private readonly byte m_size_record_power_slices = 0;
+
+        // это значение прописано в документации на странице 104 для 
+        // СЭТ-4ТМ.01, СЭТ-4ТМ.02(М), СЭТ-4ТМ.03(М), ПСЧ-3,4ТМ.05М, ПСЧ - 3,4ТМ.05Д, СЭБ - 1ТМ.02Д для соотве.массивов мощности
+        private readonly ushort m_depth_storage_power_slices = 2730;
+        private readonly byte m_size_record_power_slices = 24;
+
 
         private const byte TEST_ANSW_SIZE = 4;
         private const byte OPEN_ANSW_SIZE = 4;
@@ -222,14 +226,9 @@ namespace Drivers
 
         public SET4tmDriver()
         {
-            m_depth_storage_power_slices = Convert.ToUInt16(m_max_records_power_slices / (60 / m_period_int_power_slices + 1));
-            m_size_record_power_slices = (60 / m_period_int_power_slices + 1) * 8;
+           // m_size_record_power_slices = (60 / m_period_int_power_slices + 1) * 8;
 
- 
         }
-
-
-
 
         public void Init(uint address, string pass, VirtualPort data_vport)
         {
@@ -610,34 +609,63 @@ namespace Drivers
 
         public bool ReadPowerSlice(ref List<RecordPowerSlice> listRPS, DateTime dt_begin, byte period)
         {
+            string msg = "";
             try
             {
                 // читаем последний срез
                 LastPowerSlice lps = new LastPowerSlice();
                 if (!ReadCurrentPowerSliceInfo(ref lps))
                 {
+                    msg = "ReadPowerSlice: не найден последний срез";
+                    WriteToLog(msg);
                     return false;
                 }
 
+                //DateTime dtNow = DateTime.Now.Date;
+                //DateTime dt = new DateTime(dtNow.Year, dtNow.Month, dtNow.Day, 21, 00, 00);
+
+                //lps.period = 30;
+                //lps.dt = dt;
+                //lps.reload = false;
+                //lps.addr = 60000;
+
+                msg = $"ReadPowerSlice: последний срез за {lps.dt.ToString()}, адрес: {lps.addr}, переполнение: {lps.reload}";
+                WriteToLog(msg);
+
                 // Вычисляем разницу в часах
                 TimeSpan span = lps.dt - dt_begin;
-                int diff_hours = Convert.ToInt32(span.TotalHours);
+                double diff_minutes = span.TotalMinutes;
+                double diff_halfs = diff_minutes / 30;
+                int cntHalfsToRead = (int)Math.Ceiling(diff_halfs);
+
+                //int diff_hours = Convert.ToInt32(span.TotalHours);
+ 
+                msg = $"ReadPowerSlice: между датой начала чтения и последним срезом {cntHalfsToRead} получасовых значений";
+                WriteToLog(msg);
 
                 // если разница > max кол-ва хранящихся записей в счётчике, то не вычитываем их из счётчика
-                if (diff_hours >= m_depth_storage_power_slices)
+                if (cntHalfsToRead > m_depth_storage_power_slices)
                 {
-                    diff_hours = m_depth_storage_power_slices;
+                    // cntHalfsToRead = m_depth_storage_power_slices;
+
+                    msg = $"ReadPowerSlice: кол-во запрошенных получасовок {cntHalfsToRead} преывышает максимальный размер архива {m_depth_storage_power_slices}, срезы прочитан не будут";
+                    WriteToLog(msg);
+                    return false;
                 }
 
-                if (diff_hours > (lps.addr / 24))
+                // если запрошенный адрес старше чем адрес последней получасовки (запрашиваемой еще нет)
+                if (cntHalfsToRead > (lps.addr / 24))
                 {
-                    diff_hours = lps.addr / 24;
+                    cntHalfsToRead = lps.addr / 24;
+
+                    msg = $"ReadPowerSlice: кол-во запрошенных получасовок {cntHalfsToRead} преывашает кол-во хранящихся {lps.addr / 24}, будет прочитано {lps.addr / 24} срезов";
+                    WriteToLog(msg);
                 }
 
                 //WriteToLog("differense hours=" + diff_hours.ToString() + "; reload=" + lps.reload.ToString() + "; dt_begin=" + dt_begin.ToString());
                 List<RecordPowerSlice> lRPS = new List<RecordPowerSlice>();
 
-                for (int i = diff_hours; i > 0; i--)
+                for (int i = cntHalfsToRead; i > 0; i--)
                 {
                     int add_minus_val = (lps.dt.Minute == 0) ? 8 : 16;
                     int addr = lps.addr - Convert.ToUInt16(m_size_record_power_slices * i) - (ushort)add_minus_val;
@@ -663,8 +691,7 @@ namespace Drivers
                     }
                     else
                     {
-                        WriteToLog("ReadPowerSlice: slice has not been read");
-                        break;
+                        WriteToLog($"ReadPowerSlice: срез {i} не прочитан");
                     }
                 }
 
@@ -715,8 +742,8 @@ namespace Drivers
                 }
             } while (p++ < 3);
 
-            //WriteToLog("Request: " + BitConverter.ToString(m_cmd));
-            //WriteToLog("ReadSlice: " + BitConverter.ToString(answer));
+            WriteToLog("ReadSlice << " + BitConverter.ToString(m_cmd));
+            WriteToLog("ReadSlice >> " + BitConverter.ToString(answer));
 
             if (read_ok)
             {
@@ -731,7 +758,7 @@ namespace Drivers
                         int month = CommonMeters.DEC2HEX(answer[3]);
                         int year = CommonMeters.DEC2HEX(answer[4]) + 2000;
 
-                        WriteToLog("ReadSlice address: " + m_address.ToString() + "; datetime: hour=" + hour.ToString() + " day=" + day.ToString() + " month=" + month.ToString() + " year=" + year.ToString());
+                        WriteToLog($"ReadSlice address={addr_slice}, datetime from answer: hour=" + hour.ToString() + " day=" + day.ToString() + " month=" + month.ToString() + " year=" + year.ToString());
 
                         byte[] slices_data = new byte[16];
 
@@ -749,7 +776,7 @@ namespace Drivers
                             // Неполный срез
                             rps.not_full = (Convert.ToByte(slices_data[0] >> 7) == 1) ? true : false;
 
-                            WriteToLog("ReadSlice: datetime " + rps.date_time.ToString() + "; status " + rps.not_full.ToString());
+                            WriteToLog("ReadSlice: datetime=" + rps.date_time.ToString() + "; not full: " + rps.not_full.ToString());
 
                             // Разбираем по видам энергии
                             for (int i = 0; i < 4; i++)
@@ -835,14 +862,10 @@ namespace Drivers
                 //WriteToLog("ReadCurrentPowerSliceInfo datetime: minute" + answer[1].ToString("x") + " hour=" + hour.ToString() + " day=" + day.ToString() + " month=" + month.ToString() + " year=" + year.ToString());
 
                 lps.dt = new DateTime(year, month, day, hour, minute, 0);
-
-                //WriteToLog("Last power slice: Reload=" + lps.reload.ToString() +
-                //                            "; Address=" + lps.addr.ToString() +
-                //                            "; Datetime=" + lps.dt.ToShortDateString() + " " + lps.dt.ToShortTimeString());
             }
             catch (Exception ex)
             {
-                WriteToLog("ReadCurrentPowerSliceInfo - " + ex.Message);
+                WriteToLog("ReadCurrentPowerSliceInfo exception: " + ex.Message);
                 return false;
             }
             return true;
@@ -1175,10 +1198,7 @@ namespace Drivers
 
         public bool ReadPowerSlice(DateTime dt_begin, DateTime dt_end, ref List<RecordPowerSlice> listRPS, byte period)
         {
-            if (ReadPowerSlice(ref listRPS, dt_begin, 30))
-                return true;
-            else
-                return false;
+            return ReadPowerSlice(ref listRPS, dt_begin, 30);
         }
 
         public bool SyncTime(DateTime dt)

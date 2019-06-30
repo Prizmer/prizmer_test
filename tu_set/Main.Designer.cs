@@ -30,6 +30,7 @@
         {
             this.ctlConnectionSettings1 = new PollingLibraries.LibPorts.CtlConnectionSettings();
             this.ctlMeters1 = new Drivers.LibMeter.ctlMeters();
+            this.btnTest = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // ctlConnectionSettings1
@@ -63,11 +64,22 @@
             this.ctlMeters1.TabIndex = 1;
             this.ctlMeters1.Load += new System.EventHandler(this.ctlMeters1_Load);
             // 
+            // btnTest
+            // 
+            this.btnTest.Location = new System.Drawing.Point(1122, 370);
+            this.btnTest.Name = "btnTest";
+            this.btnTest.Size = new System.Drawing.Size(105, 34);
+            this.btnTest.TabIndex = 3;
+            this.btnTest.Text = "TEST";
+            this.btnTest.UseVisualStyleBackColor = true;
+            this.btnTest.Click += new System.EventHandler(this.btnTest_Click);
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1239, 416);
+            this.Controls.Add(this.btnTest);
             this.Controls.Add(this.ctlConnectionSettings1);
             this.Controls.Add(this.ctlMeters1);
             this.Name = "Main";
@@ -80,6 +92,7 @@
         #endregion
         private Drivers.LibMeter.ctlMeters ctlMeters1;
         private PollingLibraries.LibPorts.CtlConnectionSettings ctlConnectionSettings1;
+        private System.Windows.Forms.Button btnTest;
     }
 }
 
