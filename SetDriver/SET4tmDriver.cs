@@ -614,20 +614,20 @@ namespace Drivers
             {
                 // читаем последний срез
                 LastPowerSlice lps = new LastPowerSlice();
-                if (!ReadCurrentPowerSliceInfo(ref lps))
-                {
-                    msg = "ReadPowerSlice: не найден последний срез";
-                    WriteToLog(msg);
-                    return false;
-                }
+                //if (!ReadCurrentPowerSliceInfo(ref lps))
+                //{
+                //    msg = "ReadPowerSlice: не найден последний срез";
+                //    WriteToLog(msg);
+                //    return false;
+                //}
 
-                //DateTime dtNow = DateTime.Now.Date;
-                //DateTime dt = new DateTime(dtNow.Year, dtNow.Month, dtNow.Day, 21, 00, 00);
+                DateTime dtNow = DateTime.Now.Date;
+                DateTime dt = new DateTime(dtNow.Year, dtNow.Month, dtNow.Day, 1, 00, 00);
 
-                //lps.period = 30;
-                //lps.dt = dt;
-                //lps.reload = false;
-                //lps.addr = 60000;
+                lps.period = 30;
+                lps.dt = dt;
+                lps.reload = false;
+                lps.addr = 60000;
 
                 msg = $"ReadPowerSlice: последний срез за {lps.dt.ToString()}, адрес: {lps.addr}, переполнение: {lps.reload}";
                 WriteToLog(msg);
@@ -644,11 +644,13 @@ namespace Drivers
                 TimeSpan span = lps.dt - dt_begin;
                 double diff_minutes = span.TotalMinutes;
                 double diff_halfs = diff_minutes / 30;
-                double diff_records_to_read = diff_halfs / 2;
 
-                int cntHalfsToRead = (int)Math.Ceiling(diff_halfs);
-                int cntRecsToRead = (int)Math.Ceiling(diff_records_to_read);
-                //int diff_hours = Convert.ToInt32(span.TotalHours);
+                int cntHalfsToRead = (int)Math.Floor(diff_halfs) + 1;
+                int cntRecsToRead = (int)Math.Ceiling((double)cntHalfsToRead / 2);
+                //if (lps.dt.Minute > 0)
+                //{
+                //    cntRecsToRead++;
+                //}
 
                 msg = $"ReadPowerSlice: между датой начала чтения и последним срезом {cntHalfsToRead} получасовых значений и нужно прочитать {cntRecsToRead} записей";
                 WriteToLog(msg);
@@ -656,21 +658,19 @@ namespace Drivers
                 // если разница > max кол-ва хранящихся записей в счётчике, то не вычитываем их из счётчика
                 if (cntHalfsToRead > m_depth_storage_power_slices)
                 {
-                    // cntHalfsToRead = m_depth_storage_power_slices;
-
                     msg = $"ReadPowerSlice: кол-во запрошенных получасовок {cntHalfsToRead} преывышает максимальный размер архива {m_depth_storage_power_slices}, срезы прочитан не будут";
                     WriteToLog(msg);
                     return false;
                 }
 
                 // если запрошенный адрес старше чем адрес последней получасовки (запрашиваемой еще нет)
-                if (cntHalfsToRead > (lps.addr / 24))
-                {
-                    cntHalfsToRead = lps.addr / 24;
+                //if (cntHalfsToRead > (lps.addr / 24))
+                //{
+                //    cntHalfsToRead = lps.addr / 24;
 
-                    msg = $"ReadPowerSlice: кол-во запрошенных получасовок {cntHalfsToRead} преывашает кол-во хранящихся {lps.addr / 24}, будет прочитано {lps.addr / 24} срезов";
-                    WriteToLog(msg);
-                }
+                //    msg = $"ReadPowerSlice: кол-во запрошенных получасовок {cntHalfsToRead} преывашает кол-во хранящихся {lps.addr / 24}, будет прочитано {lps.addr / 24} срезов";
+                //    WriteToLog(msg);
+                //}
 
                 //WriteToLog("differense hours=" + diff_hours.ToString() + "; reload=" + lps.reload.ToString() + "; dt_begin=" + dt_begin.ToString());
                 List<RecordPowerSlice> lRPS = new List<RecordPowerSlice>();
@@ -696,7 +696,9 @@ namespace Drivers
                             rps.status = Convert.ToByte(!ids.not_full);
                             rps.date_time = ids.date_time;
                             rps.period = 30;
-                            lRPS.Add(rps);
+
+                            if (rps.date_time <= lps.dt)
+                                lRPS.Add(rps);
                         }
                     }
                     else
