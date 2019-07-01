@@ -818,7 +818,11 @@ namespace Drivers
                                 buff[0] = slices_data[j * 8 + i * 2 + 1];
                                 buff[1] = Convert.ToByte(slices_data[j * 8 + i * 2 + 0] & 0x7F);
 
-                                rv.value = Math.Round((Convert.ToSingle(Convert.ToSingle(BitConverter.ToUInt16(buff, 0)) / (2f * (float)m_gear_ratio)) * (60 / m_period_int_power_slices)) / 2f, 4);//n/2a*60/period
+                                rv.value = Math.Round(
+                                    (Convert.ToSingle(Convert.ToSingle(BitConverter.ToUInt16(buff, 0)) / (2 * (float)m_gear_ratio)) * (60 / m_period_int_power_slices)), 
+                                4);
+                                
+                                //n/2a*60/period
                                 rv.fine_state = true;
 
                                 rps.values.Add(rv);
