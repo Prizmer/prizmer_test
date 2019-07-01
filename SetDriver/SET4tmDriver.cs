@@ -614,20 +614,20 @@ namespace Drivers
             {
                 // читаем последний срез
                 LastPowerSlice lps = new LastPowerSlice();
-                //if (!ReadCurrentPowerSliceInfo(ref lps))
-                //{
-                //    msg = "ReadPowerSlice: не найден последний срез";
-                //    WriteToLog(msg);
-                //    return false;
-                //}
+                if (!ReadCurrentPowerSliceInfo(ref lps))
+                {
+                    msg = "ReadPowerSlice: не найден последний срез";
+                    WriteToLog(msg);
+                    return false;
+                }
 
-                DateTime dtNow = DateTime.Now.Date;
-                DateTime dt = new DateTime(dtNow.Year, dtNow.Month, dtNow.Day, 1, 00, 00);
+                //DateTime dtNow = DateTime.Now.Date;
+                //DateTime dt = new DateTime(dtNow.Year, dtNow.Month, dtNow.Day, 1, 00, 00);
 
-                lps.period = 30;
-                lps.dt = dt;
-                lps.reload = false;
-                lps.addr = 60000;
+                //lps.period = 30;
+                //lps.dt = dt;
+                //lps.reload = false;
+                //lps.addr = 60000;
 
                 msg = $"ReadPowerSlice: последний срез за {lps.dt.ToString()}, адрес: {lps.addr}, переполнение: {lps.reload}";
                 WriteToLog(msg);
