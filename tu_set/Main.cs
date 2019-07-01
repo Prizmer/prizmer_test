@@ -9,33 +9,86 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 using Drivers;
+using Drivers.KaratDanfosDriver;
+
+using Drivers.LibMeter;
+
+
+using System.Reflection;
+using System.Diagnostics;
 
 namespace tu_SET
 {
     public partial class Main : Form
     {
+        public const string FORM_TEXT = "Тестовая утилита";
+
         public Main()
         {
-            InitializeComponent(); 
+            InitializeComponent();
+
+            this.Text = FORM_TEXT;
+
+            if (ctlSelectDriver1.Enabled)
+            {
+                // если включен выбор драйвера, выключаем компонент подключения
+                // т.к. сначала нужно выбрать драйвер
+                ctlConnectionSettings1.Enabled = false;
+            } 
+
+            ctlConnectionSettings1.SettingsApplied += CtlConnectionSettings1_SettingsApplied;
+            ctlSelectDriver1.DriverInstanceReady += CtlSelectDriver1_DriverInstanceReady;
+
+            this.Text = FORM_TEXT + " - " + ctlSelectDriver1.PredefinedDriverName;
         }
 
         private void Main_Load(object sender, EventArgs e)
         {
-            ctlConnectionSettings1.SettingsApplied += CtlConnectionSettings1_SettingsApplied;
 
+
+        }
+
+        private void CtlSelectDriver1_DriverInstanceReady(object sender, tu_set.DriverInstanceReadyArgs e)
+        {
+            bool bSuccess = !(e.MeterInterfaceInstance == null || e.MeterType == null);
+            if (bSuccess)
+                this.Text = FORM_TEXT + " - " + e.MeterType.Name; 
+            else
+                this.Text = FORM_TEXT;
+
+            if (ctlSelectDriver1.Enabled)
+            {
+                ctlConnectionSettings1.ClosePortForce();
+                ctlMeters1.Enabled = false;
+
+                ctlConnectionSettings1.Enabled = bSuccess;
+            }
         }
 
         private void CtlConnectionSettings1_SettingsApplied(object sender, PollingLibraries.LibPorts.EventArgsSettingsApplied e)
         {
-            if (e.VPort != null)
-            {
-                ctlMeters1.Enabled = true;
-                Drivers.SET4tmDriver meter = new SET4tmDriver();
-                ctlMeters1.InitializeMeter(meter, e.VPort);
-            } else
+            if (e.VPort == null)
             {
                 ctlMeters1.Enabled = false;
+                return;
             }
+
+            // если компонент выбора драйвера включен, будем создавать объекты при помощи
+            // рефлексии, иначе - задавая тип вручную.
+
+            if (ctlSelectDriver1.Enabled)
+            {
+                IMeter iMeter = ctlSelectDriver1.MeterInterfaceInstance;
+                ctlMeters1.Initialize(iMeter, e.VPort);
+            }
+            else
+            {   
+                // объявляем тип вручную
+                SET4tmDriver meter = new SET4tmDriver();
+                ctlMeters1.Initialize(meter, e.VPort);
+            }
+
+            ctlMeters1.Enabled = true;
         }
 
         private void ctlMeters1_Load(object sender, EventArgs e)
@@ -43,22 +96,34 @@ namespace tu_SET
 
         }
 
+
         private void btnTest_Click(object sender, EventArgs e)
         {
-            SET4tmDriver driver = new SET4tmDriver();
-            List<Drivers.LibMeter.RecordPowerSlice> rps = new List<Drivers.LibMeter.RecordPowerSlice>();
-
-            DateTime dtNow = DateTime.Now.Date;
-            DateTime dt = new DateTime(dtNow.Year, dtNow.Month, dtNow.Day, 0, 00, 00);
-
-            driver.ReadPowerSlice(ref rps, dt, dt, 30);
-
-            //byte[] temp = new byte[2] { 0x01, 0x99};
-
-            //// адрес последней записи
-            //int tmp = BitConverter.ToUInt16(temp, 0);
+            // SET4tmDriver driver = (SET4tmDriver)ctlMeters1.GetInitializedDriver();
 
 
+  
+
+
+            //List<Drivers.LibMeter.RecordPowerSlice> rps = new List<Drivers.LibMeter.RecordPowerSlice>();
+
+            //DateTime dtNow = DateTime.Now.Date;
+            //DateTime dt = new DateTime(dtNow.Year, dtNow.Month, dtNow.Day, 0, 00, 00);
+
+            //driver.ReadPowerSlice(ref rps, dt, dt, 30);
+
+            ////byte[] temp = new byte[2] { 0x01, 0x99};
+
+            ////// адрес последней записи
+            ////int tmp = BitConverter.ToUInt16(temp, 0);
+
+
+
+        }
+
+        private void pictureBoxLogo_Click(object sender, EventArgs e)
+        {
+            Process.Start("http://prizmer.ru/");
         }
     }
 }
