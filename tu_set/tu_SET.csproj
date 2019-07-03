@@ -143,6 +143,10 @@
       <Project>{9d781833-4219-4c11-89bb-6d0160131414}</Project>
       <Name>KaratDanfosDriver</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\tu_mercury23X\Mercury23XDriver\Mercury23XDriver.csproj">
+      <Project>{56ab5be1-bc5f-4282-ae46-fdafed2efb01}</Project>
+      <Name>Mercury23XDriver</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\tu_pulsarm\PulsarDriver\PulsarDriver.csproj">
       <Project>{cd517ce4-70f4-43b8-b38c-11d09b0ccbf1}</Project>
       <Name>PulsarDriver</Name>
