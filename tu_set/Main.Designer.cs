@@ -29,44 +29,14 @@
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Main));
-            this.ctlConnectionSettings1 = new PollingLibraries.LibPorts.CtlConnectionSettings();
-            this.ctlMeters1 = new Drivers.LibMeter.ctlMeters();
             this.btnTest = new System.Windows.Forms.Button();
             this.pictureBoxLogo = new System.Windows.Forms.PictureBox();
             this.ctlSelectDriver1 = new tu_set.CtlSelectDriver();
+            this.ctlConnectionSettings1 = new PollingLibraries.LibPorts.CtlConnectionSettings();
+            this.ctlMeters1 = new Drivers.LibMeter.ctlMeters();
+            this.ctlLogger1 = new PollingLibraries.LibLogger.CtlLogger();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxLogo)).BeginInit();
             this.SuspendLayout();
-            // 
-            // ctlConnectionSettings1
-            // 
-            this.ctlConnectionSettings1.AccessibleRole = System.Windows.Forms.AccessibleRole.ScrollBar;
-            this.ctlConnectionSettings1.COM = null;
-            this.ctlConnectionSettings1.GSM = false;
-            this.ctlConnectionSettings1.IP = null;
-            this.ctlConnectionSettings1.IsTCPSelected = false;
-            this.ctlConnectionSettings1.Location = new System.Drawing.Point(12, 12);
-            this.ctlConnectionSettings1.Name = "ctlConnectionSettings1";
-            this.ctlConnectionSettings1.Size = new System.Drawing.Size(292, 400);
-            this.ctlConnectionSettings1.TabIndex = 2;
-            this.ctlConnectionSettings1.TCPPort = "0";
-            // 
-            // ctlMeters1
-            // 
-            this.ctlMeters1.AddressMeter = ((uint)(1u));
-            this.ctlMeters1.AddressParam = 1;
-            this.ctlMeters1.ChannelParam = 1;
-            this.ctlMeters1.EnableAuxilary = true;
-            this.ctlMeters1.EnableCurrent = true;
-            this.ctlMeters1.Enabled = false;
-            this.ctlMeters1.EnableDaily = true;
-            this.ctlMeters1.EnableHalfs = true;
-            this.ctlMeters1.EnableMonthly = true;
-            this.ctlMeters1.Location = new System.Drawing.Point(310, 93);
-            this.ctlMeters1.Name = "ctlMeters1";
-            this.ctlMeters1.PasswordMeter = "000000";
-            this.ctlMeters1.Size = new System.Drawing.Size(930, 268);
-            this.ctlMeters1.TabIndex = 1;
-            this.ctlMeters1.Load += new System.EventHandler(this.ctlMeters1_Load);
             // 
             // btnTest
             // 
@@ -100,11 +70,50 @@
             this.ctlSelectDriver1.Size = new System.Drawing.Size(362, 75);
             this.ctlSelectDriver1.TabIndex = 4;
             // 
+            // ctlConnectionSettings1
+            // 
+            this.ctlConnectionSettings1.AccessibleRole = System.Windows.Forms.AccessibleRole.ScrollBar;
+            this.ctlConnectionSettings1.COM = null;
+            this.ctlConnectionSettings1.GSM = false;
+            this.ctlConnectionSettings1.IP = null;
+            this.ctlConnectionSettings1.IsTCPSelected = false;
+            this.ctlConnectionSettings1.Location = new System.Drawing.Point(12, 12);
+            this.ctlConnectionSettings1.Name = "ctlConnectionSettings1";
+            this.ctlConnectionSettings1.Size = new System.Drawing.Size(292, 400);
+            this.ctlConnectionSettings1.TabIndex = 2;
+            this.ctlConnectionSettings1.TCPPort = "0";
+            // 
+            // ctlMeters1
+            // 
+            this.ctlMeters1.AddressMeter = ((uint)(1u));
+            this.ctlMeters1.AddressParam = 1;
+            this.ctlMeters1.ChannelParam = 1;
+            this.ctlMeters1.EnableAuxilary = true;
+            this.ctlMeters1.EnableCurrent = true;
+            this.ctlMeters1.Enabled = false;
+            this.ctlMeters1.EnableDaily = true;
+            this.ctlMeters1.EnableHalfs = true;
+            this.ctlMeters1.EnableMonthly = true;
+            this.ctlMeters1.Location = new System.Drawing.Point(310, 93);
+            this.ctlMeters1.Name = "ctlMeters1";
+            this.ctlMeters1.PasswordMeter = "000000";
+            this.ctlMeters1.Size = new System.Drawing.Size(930, 268);
+            this.ctlMeters1.TabIndex = 1;
+            this.ctlMeters1.Load += new System.EventHandler(this.ctlMeters1_Load);
+            // 
+            // ctlLogger1
+            // 
+            this.ctlLogger1.Location = new System.Drawing.Point(953, 4);
+            this.ctlLogger1.Name = "ctlLogger1";
+            this.ctlLogger1.Size = new System.Drawing.Size(182, 87);
+            this.ctlLogger1.TabIndex = 52;
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1244, 420);
+            this.ClientSize = new System.Drawing.Size(1244, 417);
+            this.Controls.Add(this.ctlLogger1);
             this.Controls.Add(this.pictureBoxLogo);
             this.Controls.Add(this.ctlSelectDriver1);
             this.Controls.Add(this.btnTest);
@@ -125,6 +134,7 @@
         private System.Windows.Forms.Button btnTest;
         private tu_set.CtlSelectDriver ctlSelectDriver1;
         private System.Windows.Forms.PictureBox pictureBoxLogo;
+        private PollingLibraries.LibLogger.CtlLogger ctlLogger1;
     }
 }
 

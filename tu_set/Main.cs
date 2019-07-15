@@ -106,7 +106,6 @@ namespace tu_SET
             // SET4tmDriver driver = (SET4tmDriver)ctlMeters1.GetInitializedDriver();
 
             byte[] temp = { 0x8B, 0xAE, 0x9A, 0x3B };
-            Array.Reverse(temp);
             double val = BitConverter.ToSingle(temp, 0) / 1000;
     
 

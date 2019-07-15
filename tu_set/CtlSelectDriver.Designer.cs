@@ -45,7 +45,7 @@
             this.gbDriver.Size = new System.Drawing.Size(350, 66);
             this.gbDriver.TabIndex = 0;
             this.gbDriver.TabStop = false;
-            this.gbDriver.Text = "Драйвер";
+            this.gbDriver.Text = "(1) Драйвер";
             // 
             // btnApply
             // 
