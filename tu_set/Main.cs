@@ -10,6 +10,7 @@ using System.Windows.Forms;
 
 using Drivers;
 using Drivers.KaratDanfosDriver;
+using Drivers.PulsarDriver;
 
 using Drivers.LibMeter;
 
@@ -99,11 +100,19 @@ namespace tu_SET
 
         private void btnTest_Click(object sender, EventArgs e)
         {
+
+
+
             // SET4tmDriver driver = (SET4tmDriver)ctlMeters1.GetInitializedDriver();
 
+            byte[] temp = { 0x8B, 0xAE, 0x9A, 0x3B };
+            Array.Reverse(temp);
+            double val = BitConverter.ToSingle(temp, 0) / 1000;
+    
 
-  
 
+            //string tmpStrVal = val.ToString("0.0000");
+            //float tmpRecordValHack = (float)Convert.ToDecimal(val);
 
             //List<Drivers.LibMeter.RecordPowerSlice> rps = new List<Drivers.LibMeter.RecordPowerSlice>();
 
