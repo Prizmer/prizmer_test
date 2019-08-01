@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 
 using PollingLibraries.LibLogger;
 using PollingLibraries.LibPorts;
@@ -309,33 +309,39 @@ namespace Drivers
         private void MakeCommand(byte[] cmnd, ref ushort size)
         {
             List<byte> tmpCmd = new List<byte>();
-
             m_length_cmd = 0;
 
             // Добавление сетевого адреса прибора в начало посылки
             tmpCmd.Add((byte)m_address);
-            //m_cmd[m_length_cmd++] = (byte)m_address;
 
             // Добавление данных в посылку
             byte[] cmdStrict = new byte[size];
             Array.Copy(cmnd, 0, cmdStrict, 0, size);
             tmpCmd.AddRange(cmdStrict);
-            //for (int i = 0; i < size; i++)
-            //{
-            //    m_cmd[m_length_cmd++] = cmnd[i];
-            //}
 
             // Вычисляем CRC
             CalcCRC(tmpCmd.ToArray(), Convert.ToUInt16(size + 1));
 
             // Добавляем контрольную сумму к команде
             tmpCmd.AddRange(m_crc);
-            //for (int i = 0; i < 2; i++)
-            //{
-            //    m_cmd[m_length_cmd++] = m_crc[i];
-            //}
 
             size += 3;
+
+            m_cmd = tmpCmd.ToArray();
+        }
+
+        private void MakeCommandNew(byte[] cmd)
+        {
+            List<byte> tmpCmd = new List<byte>();
+            m_length_cmd = 0;
+
+            // Добавление сетевого адреса прибора в начало посылки
+            tmpCmd.Add((byte)m_address);
+            tmpCmd.AddRange(cmd);
+            CalcCRC(tmpCmd.ToArray(), (ushort)tmpCmd.Count);
+
+            // Добавляем контрольную сумму к команде
+            tmpCmd.AddRange(m_crc);
 
             m_cmd = tmpCmd.ToArray();
         }
@@ -724,7 +730,7 @@ namespace Drivers
             return false;
         }
 
-        public bool ReadPowerSlice(ref List<RecordPowerSlice> listRPS, DateTime dt_begin, DateTime dt_end, byte period = 30)
+        public bool ReadPowerSliceOld2(ref List<RecordPowerSlice> listRPS, DateTime dt_begin, DateTime dt_end, byte period = 30)
         {
 
             string msg = "";
@@ -764,9 +770,8 @@ namespace Drivers
                 msg = $"ReadPowerSlice: между датой начала чтения и последним срезом {cntHalfsAvailableFromDtStart} получасовых значений, т.е. доступно для вычитки {cntRecsAvailableFromDtStart} записей";
                 WriteToLog(msg);
 
-                // определим кол-во записей между dt_begin & dt_ed
-
-                TimeSpan tsDtEndDtBegin = dt_end - dt_begin;
+                // определим кол-во записей между dt_begin & dateEnd
+                TimeSpan tsDtEndDtBegin = dateEnd - dt_begin;
                 double diffMinDtEndDtBegin = tsDtEndDtBegin.TotalMinutes;
                 double diffHalfsDtEndDtBegin = diffMinDtEndDtBegin / 30;
 
@@ -786,16 +791,27 @@ namespace Drivers
 
                 List<RecordPowerSlice> lRPS = new List<RecordPowerSlice>();
 
-                for (int i = cntRecsAvailableFromDtStart - 1; i >= cntRecsAvailableFromDtStart - cntRecsToRead; i--)
-                {
-                    int add_minus_val = (lps.dt.Minute == 0) ? 8 : 16;
-                    int addr = lps.addr - Convert.ToUInt16(m_size_record_power_slices * i) - (ushort)add_minus_val;
-                    ushort address_slice = (addr < 0) ? Convert.ToUInt16(Convert.ToInt32(65536 + addr)) : Convert.ToUInt16(addr);
+                // в массиве профилей получасовых, получасовки хранятся в записях по 24 байта
+                // 8 байт заголовок, 8 байт значение от, 8 байт значение до
+                // соответственно, адресс последнего среза - адрес конкретной получасовки, а не записи
+                // для получения адреса записи нужно вычесть либо 8 байт, либо 16 в зависимости от того, какой последний срез
+                int addressDelta = (lps.dt.Minute == 0) ? 8 : 0x10;
 
-                    // чтение среза по рассчитанному адресу и при чтении не было ошибок
+                int addr = lps.addr - Convert.ToUInt16(m_size_record_power_slices * cntRecsAvailableFromDtStart);
+                ushort address_slice = (addr < 0) ? Convert.ToUInt16(Convert.ToInt32(65536 + addr)) : Convert.ToUInt16(addr - addressDelta);
+                WriteToLog($"ReadPowerSlice: адрес запрашиваемого среза, рассчитаный по своему: {address_slice}");
+
+                for (int i = cntRecsAvailableFromDtStart; i > cntRecsAvailableFromDtStart - cntRecsToRead; i--)
+                {
+                    addr = lps.addr - Convert.ToUInt16(m_size_record_power_slices * i);
+                    // TODO: не проверенно, узкое место
+
+                    // 65536 - константа из документации, стр 103. 8192 значения по 8 байт
+                    address_slice = (addr < 0) ? Convert.ToUInt16(Convert.ToInt32(65536 + addr)) : Convert.ToUInt16(addr - addressDelta);
+
 
                     List<IndaySlice> record_slices = new List<IndaySlice>();
-                    if (ReadSlice((ushort)address_slice, ref record_slices, period))
+                    if (ReadSlice(address_slice, ref record_slices, period))
                     {
                         foreach (IndaySlice ids in record_slices)
                         {
@@ -814,7 +830,7 @@ namespace Drivers
                     }
                     else
                     {
-                        WriteToLog($"ReadPowerSlice: срез {i} не прочитан");
+                        WriteToLog($"ReadPowerSlice: срез {i} с адресом {address_slice} не прочитан");
                     }
                 }
 
@@ -832,6 +848,221 @@ namespace Drivers
             {
                 WriteToLog("ReadPowerSlice: " + ex.Message);
                 return false;
+            }
+
+            return false;
+        }
+
+        /**
+         * Ищет адрес среза (8б) по заголовку записи (24б) в массиве мощностей 
+        */
+        private bool findSliceAddress(DateTime recordDate, ref ushort address)
+        {
+            address = 0;
+
+            if (m_vport == null)
+            {
+                WriteToLog("findRecordAddress m_vport = null");
+                return false;
+            }
+
+            // для поиска адреса необходимо сначала отправить запрос на запись,
+            // а потом проверять статус выполнения см. стр. 49
+            // 07 03 28 [00 [ED A8] FF [13 07 19] FF 1E] 78 91 
+
+            List<byte> cmd = new List<byte>();
+
+            byte[] req = new byte[] { 0x03, 0x28 };
+            cmd.AddRange(req);
+
+            // номер массива чтения
+            cmd.Add(0);
+
+            /* Если в поле адреса начала поиска записать FFFFh, то поиск будет начинаться не с физи-ческого 
+             * адреса начала массива профиля, а с логического адреса:  
+             * - если нет переполнения массива профиля, то поиск начинается с нулевого адреса (до адреса указателя);
+             * - если есть переполнение массива профиля, то поиск начинается с адреса ближайшего заголовка, 
+             * после указателя массива профиля в сторону больших адресов до адреса указателя (проверяется весь массив). */
+            byte[] addr = { 0xFF, 0xFF };
+            cmd.AddRange(addr);
+
+
+            byte[] dateBytes = new byte[4];
+            dateBytes[0] = CommonMeters.HEX2DEC((byte)recordDate.Hour);
+            dateBytes[1] = CommonMeters.HEX2DEC((byte)recordDate.Day);
+            dateBytes[2] = CommonMeters.HEX2DEC((byte)recordDate.Month);
+            dateBytes[3] = CommonMeters.HEX2DEC(byte.Parse(recordDate.ToString("yy")));
+            cmd.AddRange(dateBytes);
+
+            // зима лето
+            cmd.Add(0xFF);
+            // время интегрирования
+            cmd.Add(0x1E);
+
+            MakeCommandNew(cmd.ToArray());
+            byte[] answerCallFindBytes = new byte[0];
+
+            WriteToLog("findRecordAddress << " + BitConverter.ToString(m_cmd));
+            m_vport.WriteReadData(FindPacketSignature, m_cmd, ref answerCallFindBytes, m_cmd.Length, -1);
+            WriteToLog("findRecordAddress >> " + BitConverter.ToString(answerCallFindBytes));
+
+            //проверка пришедших данных
+            if (!FinishAccept(answerCallFindBytes, Convert.ToUInt16(answerCallFindBytes.Length)))
+            {
+                WriteToLog("ReadSlice: данны не прошли FinishAccept");
+                // return false;
+            }
+
+            // подготовим запрос на чтение статуса выполнения задачи поиска
+            List<byte> cmdCheckState = new List<byte>();
+            byte[] reqCheckState = new byte[] { 0x08, 0x18 };
+            cmdCheckState.AddRange(reqCheckState);
+
+            // стр. 126
+            cmdCheckState.Add(0);
+
+            MakeCommandNew(cmdCheckState.ToArray());
+            byte[] answerCheckStateBytes = new byte[0];
+
+            WriteToLog("findRecordAddress, check state req: " + BitConverter.ToString(m_cmd));
+
+            int cnt = 3;
+            for (int i = 0; i < cnt; i++)
+            {
+                // дадим счетчику время найти запись
+                Thread.Sleep(10);
+
+                m_vport.WriteReadData(FindPacketSignature, m_cmd, ref answerCheckStateBytes, m_cmd.Length, -1);
+                WriteToLog($"findRecordAddress, check state {i} >> " + BitConverter.ToString(answerCheckStateBytes));
+
+                const ushort ANSW_CHECK_STATE_BYTES = 8;
+                bool cond1 = FinishAccept(answerCheckStateBytes, ANSW_CHECK_STATE_BYTES);
+                if (!cond1)
+                {
+                    WriteToLog($"findRecordAddress, check state {i} FinishAccept FAILED");
+                    continue;
+                }
+
+                byte stateByte = answerCheckStateBytes[1];
+                if (stateByte == 0 || stateByte == 1)
+                {
+                    byte[] addrBytes = { answerCheckStateBytes[4], answerCheckStateBytes[5] };
+                    if (BitConverter.IsLittleEndian)
+                        Array.Reverse(addrBytes);
+                    address = BitConverter.ToUInt16(addrBytes, 0);
+
+                    WriteToLog($"findRecordAddress, address bytes " + BitConverter.ToString(addrBytes) + ", address val: " + address);
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool ReadPowerSlice(ref List<RecordPowerSlice> listRPS, DateTime dt_begin, DateTime dt_end, byte period = 30)
+        {
+            string msg = "";
+            msg = $"ReadPowerSlice: читаем срезы с {dt_begin.ToString()}, по {dt_end.ToString()}";
+            WriteToLog(msg);
+
+            try
+            {
+                // читаем последний срез
+                LastPowerSlice lps = new LastPowerSlice();
+                if (!ReadCurrentPowerSliceInfo(ref lps))
+                {
+                    msg = "ReadPowerSlice: не найден последний срез";
+                    WriteToLog(msg);
+                    return false;
+                }
+
+                msg = $"ReadPowerSlice: последний срез за {lps.dt.ToString()}, адрес: {lps.addr}, переполнение: {lps.reload}";
+                WriteToLog(msg);
+
+                DateTime dateEnd = dt_end;
+                if (dateEnd > lps.dt)
+                {
+                    msg = $"ReadPowerSlice: дата, по которую читаем получасовки {dateEnd.ToString()} больше даты последнего среза {lps.dt.ToString()}. Срезы будут считаны по эту дату.";
+                    dateEnd = lps.dt;
+                    WriteToLog(msg);
+                }
+
+                // найдем адрес искомого начального среза в массиве
+                ushort startSliceAddr = 0;
+                bool bFindSliceAddr = findSliceAddress(dt_begin, ref startSliceAddr);
+                if (!bFindSliceAddr)
+                {
+                    msg = $"ReadPowerSlice: не удалось найти срез на дату {dt_begin.ToString()} запросом счетчику на поиск, выход.";
+                    WriteToLog(msg);
+                    return false;
+                }
+
+                // ранее мы нашли адрес среза, а нужен адрес заголовка записи: заголовок/срезы за :00/срезы за :30
+                ushort startRecordAddr = (ushort)((dt_begin.Hour == 0) ? startSliceAddr - 8 : startSliceAddr - 16);
+
+                // определим кол-во записей между dt_begin & dateEnd
+                TimeSpan tsDtEndDtBegin = dateEnd - dt_begin;
+                double diffMinDtEndDtBegin = tsDtEndDtBegin.TotalMinutes;
+                double diffHalfsDtEndDtBegin = diffMinDtEndDtBegin / 30;
+
+                int cntHalfsToRead = (int)Math.Floor(diffHalfsDtEndDtBegin) + 1;
+                int cntRecsToRead = (int)Math.Ceiling((double)cntHalfsToRead / 2);
+
+                // если разница > max кол-ва хранящихся записей в счётчике, то не вычитываем их из счётчика
+                if (cntHalfsToRead > m_depth_storage_power_slices)
+                {
+                    msg = $"ReadPowerSlice: кол-во запрошенных получасовок {cntHalfsToRead} превышает максимальный размер архива {m_depth_storage_power_slices}, срезы прочитан не будут";
+                    WriteToLog(msg);
+                    return false;
+                }
+
+                msg = $"ReadPowerSlice: между датой начала чтения и датой конца {cntHalfsToRead} получасовых срезов, т.е. нужно вычитать {cntRecsToRead} записей";
+                WriteToLog(msg);
+
+                List<RecordPowerSlice> lRPS = new List<RecordPowerSlice>();
+                for (int r = 0; r < cntRecsToRead; r++)
+                {
+                    ushort curSliceAddr = (ushort)(startSliceAddr + (r * m_size_record_power_slices));
+
+                    List<IndaySlice> record_slices = new List<IndaySlice>();
+                    if (ReadSlice(curSliceAddr, ref record_slices, period))
+                    {
+                        foreach (IndaySlice ids in record_slices)
+                        {
+                            RecordPowerSlice rps = new RecordPowerSlice();
+                            rps.APlus = (float)ids.values[0].value;
+                            rps.AMinus = (float)ids.values[1].value;
+                            rps.RPlus = (float)ids.values[2].value;
+                            rps.RMinus = (float)ids.values[3].value;
+                            rps.status = Convert.ToByte(!ids.not_full);
+                            rps.date_time = ids.date_time;
+                            rps.period = 30;
+
+                            if (rps.date_time <= lps.dt)
+                                lRPS.Add(rps);
+                        }
+                    }
+                    else
+                    {
+                        WriteToLog($"ReadPowerSlice: срез {r} с адресом {curSliceAddr} не прочитан");
+                    }
+                }
+
+                if (lRPS.Count > 0)
+                {
+                    listRPS = lRPS;
+                    return true;
+                }
+                else
+                {
+                    WriteToLog($"ReadPowerSlice: listRPS.count={listRPS.Count}");
+                }
+
+            }
+            catch (Exception ex)
+            {
+                WriteToLog($"ReadPowerSlice, exception: {ex.Message}");
             }
 
             return false;
@@ -877,7 +1108,14 @@ namespace Drivers
                 try
                 {
                     // проверка периода интегрирования
-                    if (answer[6] == m_period_int_power_slices)
+                    bool bCheckPeriodIsValid = (answer[6] == m_period_int_power_slices);
+                    if (!bCheckPeriodIsValid)
+                    {
+                        WriteToLog("Attention: wrong period integration: target = " + m_period_int_power_slices.ToString() + "; from answer=" + answer[6].ToString());
+                        return false;
+                    }
+
+                    if (bCheckPeriodIsValid)
                     {
                         // время записи среза
                         int hour = CommonMeters.DEC2HEX(answer[1]);
@@ -946,10 +1184,7 @@ namespace Drivers
                             record_slices.Add(rps);
                         }
                     }
-                    else
-                    {
-                        WriteToLog("Wrong period integr: target = " + m_period_int_power_slices.ToString() + "; from answer=" + answer[6].ToString());
-                    }
+ 
                 }
                 catch (Exception ex)
                 {
@@ -960,6 +1195,7 @@ namespace Drivers
 
             return read_ok;
         }
+
 
         // Чтение информации о последнем зафиксированном счетчиком среза
         private bool ReadCurrentPowerSliceInfo(ref LastPowerSlice lps)

@@ -46,7 +46,7 @@ namespace tu_SET
 
         private void Main_Load(object sender, EventArgs e)
         {
-
+            bool bIsLittleEndian = BitConverter.IsLittleEndian;
 
         }
 
