@@ -17,6 +17,7 @@ using Drivers.LibMeter;
 
 using System.Reflection;
 using System.Diagnostics;
+using Microsoft.Win32;
 
 namespace tu_SET
 {
@@ -133,5 +134,41 @@ namespace tu_SET
         {
             Process.Start("http://prizmer.ru/");
         }
+    }
+
+    // TODO: сохранение состояний в реестр
+    public static class StateSaver
+    {
+        static readonly string KEY_PRG_ID = typeof(Program).Assembly.GetName().Name;
+
+        private static RegistryKey getPRGRegKey()
+        {
+            RegistryKey localMachine = Registry.LocalMachine;
+            RegistryKey keySoftware = localMachine.OpenSubKey("SOFTWARE");
+            RegistryKey target = keySoftware.OpenSubKey(KEY_PRG_ID, true);
+
+            return target;
+        }
+
+        static void SaveData(string key, string value)
+        {
+            RegistryKey target = getPRGRegKey();
+            target.SetValue(key, value, RegistryValueKind.MultiString);
+
+            // нужно закрыть все открытые ранее ключи
+        }
+
+        static bool GetData(string key, ref string value)
+        {
+
+            return true;
+        }
+
+        enum DataGroups
+        {
+            CONNECTION_SETTINGS
+
+        }
+
     }
 }
