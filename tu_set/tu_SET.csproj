@@ -151,6 +151,10 @@
       <Project>{cd517ce4-70f4-43b8-b38c-11d09b0ccbf1}</Project>
       <Name>PulsarDriver</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Mercury200Driver\Mercury200Driver.csproj">
+      <Project>{241cc5c1-79ff-49dc-8a11-f16ca4c6cb44}</Project>
+      <Name>Mercury200Driver</Name>
+    </ProjectReference>
     <ProjectReference Include="..\SetDriver\SET4tmDriver.csproj">
       <Project>{14fc09ec-8931-4b9b-89bb-42c7f0c6bcfd}</Project>
       <Name>SET4tmDriver</Name>

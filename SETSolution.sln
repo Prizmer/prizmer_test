@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mercury23XDriver", "..\tu_m
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibLogger", "..\..\PollServer\Logger\LibLogger.csproj", "{D20D8ACB-AD07-4E7F-A99E-47F4113B32EA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mercury200Driver", "Mercury200Driver\Mercury200Driver.csproj", "{241CC5C1-79FF-49DC-8A11-F16CA4C6CB44}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -63,6 +65,10 @@ Global
 		{D20D8ACB-AD07-4E7F-A99E-47F4113B32EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D20D8ACB-AD07-4E7F-A99E-47F4113B32EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D20D8ACB-AD07-4E7F-A99E-47F4113B32EA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{241CC5C1-79FF-49DC-8A11-F16CA4C6CB44}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{241CC5C1-79FF-49DC-8A11-F16CA4C6CB44}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{241CC5C1-79FF-49DC-8A11-F16CA4C6CB44}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{241CC5C1-79FF-49DC-8A11-F16CA4C6CB44}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
