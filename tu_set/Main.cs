@@ -48,6 +48,12 @@ namespace tu_SET
         {
             bool bIsLittleEndian = BitConverter.IsLittleEndian;
 
+           // byte[] data = { 0xD4, 0x6B, 0x00, 0x00 };
+           // Array.Reverse(data);
+
+            //double v1 = (double)BitConverter.ToInt32(data, 0) / 1000;
+            //float val = BitConverter.ToSingle(data, 0);
+
         }
 
         private void CtlSelectDriver1_DriverInstanceReady(object sender, tu_set.DriverInstanceReadyArgs e)
