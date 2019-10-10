@@ -22,7 +22,7 @@ namespace Drivers.Mercury200Driver
         public void Init(uint address, string pass, VirtualPort vp)
         {
             // перевод адреса в формат наладчика
-            this.m_address = 0xFA000000 + Convert.ToUInt32(3 + address * 8);
+            this.m_address = address; //0xFA000000 + Convert.ToUInt32(3 + address * 8);
             this.m_vport = vp;
 
             SetTypesForRead(GetTypesForCategory(CommonCategory.Current));
@@ -113,18 +113,19 @@ namespace Drivers.Mercury200Driver
             m_dictDataTypes.Add((byte)TypesValues.Tarif3AP, "Тариф 3 А+");
             m_dictDataTypes.Add((byte)TypesValues.Tarif4AP, "Тариф 4 А+");
 
+            m_listTypesForRead.AddRange(m_dictDataTypes.Keys);
             //  m_log_file_name += this.GetType() + "_" + m_address.ToString();
         }
 
         public void SetTypesForRead(List<byte> types)
         {
-            for (int i = 0; i < types.Count; i++)
-            {
-                if (m_dictDataTypes.ContainsKey(types[i]))
-                {
-                    m_listTypesForRead.Add(types[i]);
-                }
-            }
+            //for (int i = 0; i < types.Count; i++)
+            //{
+            //    if (m_dictDataTypes.ContainsKey(types[i]))
+            //    {
+            //        m_listTypesForRead.Add(types[i]);
+            //    }
+            //}
         }
 
         public List<byte> GetTypesForCategory(CommonCategory common_category)
@@ -241,6 +242,8 @@ namespace Drivers.Mercury200Driver
 
             if (!SendCommand(command, ref answer, 1, 23))
                 return false;
+
+            //answer = new byte[] { 0x0, 0x0d, 0xfc, 0xe2, 0x27, 0x00, 0x10, 0x36, 0x67, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x7b };
 
             for (int t = 0; t < m_listTypesForRead.Count; t++)
             {
@@ -437,11 +440,18 @@ namespace Drivers.Mercury200Driver
         {
             m_length_cmd = 0;
 
+            byte[] addrBytes = BitConverter.GetBytes(m_address);
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(addrBytes);
+
+
             // Добавление сетевого адреса прибора в начало посылки
-            m_cmd[3] = Convert.ToByte(m_address & 0xFF);
-            m_cmd[2] = Convert.ToByte((m_address >> 8) & 0xFF);
-            m_cmd[1] = Convert.ToByte((m_address >> 16) & 0xFF);
-            m_cmd[0] = Convert.ToByte((m_address >> 24) & 0xFF);
+            //m_cmd[3] = Convert.ToByte(m_address & 0xFF);
+            //m_cmd[2] = Convert.ToByte((m_address >> 8) & 0xFF);
+            //m_cmd[1] = Convert.ToByte((m_address >> 16) & 0xFF);
+            //m_cmd[0] = Convert.ToByte((m_address >> 24) & 0xFF);
+
+            Array.Copy(addrBytes, 0, m_cmd, 0, addrBytes.Length);
 
             m_length_cmd += 4;
 

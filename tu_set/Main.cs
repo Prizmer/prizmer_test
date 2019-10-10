@@ -48,8 +48,18 @@ namespace tu_SET
         {
             bool bIsLittleEndian = BitConverter.IsLittleEndian;
 
-           // byte[] data = { 0xD4, 0x6B, 0x00, 0x00 };
-           // Array.Reverse(data);
+            
+
+            // byte[] data = { 0xD4, 0x6B, 0x00, 0x00 };
+            // Array.Reverse(data);
+
+            // D FCE2‬  // 91670
+            //int t = 916706;
+            //byte[] arr = BitConverter.GetBytes(t);
+
+            //if (BitConverter.IsLittleEndian)
+            //    Array.Reverse(arr);
+
 
             //double v1 = (double)BitConverter.ToInt32(data, 0) / 1000;
             //float val = BitConverter.ToSingle(data, 0);
