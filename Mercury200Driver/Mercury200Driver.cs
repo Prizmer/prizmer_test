@@ -605,7 +605,7 @@ namespace Drivers.Mercury200Driver
         }
         public bool ReadDailyValues(DateTime dt, ushort param, ushort tarif, ref float recordValue)
         {
-            if (dt.TimeOfDay.Hours < 12 && dt.TimeOfDay.Hours > 3)
+            if (dt.TimeOfDay.Hours > 2)
             {
                 try
                 {
