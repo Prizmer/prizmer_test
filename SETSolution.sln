@@ -23,6 +23,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibLogger", "..\..\PollServ
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mercury200Driver", "Mercury200Driver\Mercury200Driver.csproj", "{241CC5C1-79FF-49DC-8A11-F16CA4C6CB44}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibMBus", "LibMBus\LibMBus.csproj", "{AFC2229A-8870-435B-8BFD-57DAD43B1C98}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SonoSelectDanfosDriver", "SonoSelectDanfosDriver\SonoSelectDanfosDriver.csproj", "{F5519608-FBCF-4954-BDF9-4D789B63CAD7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +73,14 @@ Global
 		{241CC5C1-79FF-49DC-8A11-F16CA4C6CB44}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{241CC5C1-79FF-49DC-8A11-F16CA4C6CB44}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{241CC5C1-79FF-49DC-8A11-F16CA4C6CB44}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AFC2229A-8870-435B-8BFD-57DAD43B1C98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AFC2229A-8870-435B-8BFD-57DAD43B1C98}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AFC2229A-8870-435B-8BFD-57DAD43B1C98}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AFC2229A-8870-435B-8BFD-57DAD43B1C98}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F5519608-FBCF-4954-BDF9-4D789B63CAD7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F5519608-FBCF-4954-BDF9-4D789B63CAD7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F5519608-FBCF-4954-BDF9-4D789B63CAD7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F5519608-FBCF-4954-BDF9-4D789B63CAD7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

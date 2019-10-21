@@ -159,6 +159,10 @@
       <Project>{14fc09ec-8931-4b9b-89bb-42c7f0c6bcfd}</Project>
       <Name>SET4tmDriver</Name>
     </ProjectReference>
+    <ProjectReference Include="..\SonoSelectDanfosDriver\SonoSelectDanfosDriver.csproj">
+      <Project>{f5519608-fbcf-4954-bdf9-4d789b63cad7}</Project>
+      <Name>SonoSelectDanfosDriver</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\pi_logo_2.png" />
