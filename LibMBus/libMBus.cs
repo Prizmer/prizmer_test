@@ -124,7 +124,7 @@ namespace Drivers.LibMBus
                     }
                 case 0x0F:
                     {
-                        WriteToLog("getLengthAndTypeFromDIF: 15, special functions");
+                        //WriteToLog("getLengthAndTypeFromDIF: 15, special functions");
                         type = RecordDataType.SPECIAL_FUNСTIONS;
                         return -1;
                     }

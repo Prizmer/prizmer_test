@@ -24,7 +24,7 @@ namespace Drivers.SonoSelectDanfosDriver
             this.m_addr = (byte)(this.m_address & 0x000000ff);
             this.m_vport = vp;
 
-
+            isMeterSelected = false;
             cachedAnsewerBytes.Clear();
         }
 
@@ -80,8 +80,7 @@ namespace Drivers.SonoSelectDanfosDriver
             {
                 case Params.ENERGY:
                     {
-                        //не смотря на то, что по документам k=10^-3, на счетчике отображаются с коэффициентом 1 в квт*ч.
-                        COEFFICIENT = 1;
+                        COEFFICIENT = (float)Math.Pow(10, -3);
                         break;
                     }
                 case Params.VOLUME:
@@ -90,10 +89,6 @@ namespace Drivers.SonoSelectDanfosDriver
                         break;
                     }
                 case Params.VOLUME_FLOW:
-                    {
-                        COEFFICIENT = (float)Math.Pow(10, -3);
-                        break;
-                    }
                 case Params.TEMP_INP:
                 case Params.TEMP_OUTP:
                 case Params.TEMP_DIFF:
@@ -142,55 +137,66 @@ namespace Drivers.SonoSelectDanfosDriver
                 return true;
         }
 
-        public bool getRecordValueByParam(Params param, out float value)
-        {
-            List<Record> records = new List<Record>();
-            value = 0f;
+        //public bool getRecordValueByParam(Params param, out float value)
+        //{
+        //    List<Record> records = new List<Record>();
+        //    value = 0f;
 
-            if (!GetRecordsList(out records))
-            {
-                WriteToLog("getRecordValueByParam: can't split records");
-                return false;
-            }
+        //    if (!GetRecordsList(out records))
+        //    {
+        //        WriteToLog("getRecordValueByParam: can't split records");
+        //        return false;
+        //    }
 
-            float res_val = 0f;
-            if (getRecordValueByParam(param, records, out res_val))
-            {
-                value = res_val;
-                return true;
-            }
-            else
-            {
-                WriteToLog("getRecordValueByParam: can't getRecordValueByParam");
-                return false;
-            }
-        }
+        //    float res_val = 0f;
+        //    if (getRecordValueByParam(param, records, out res_val))
+        //    {
+        //        value = res_val;
+        //        return true;
+        //    }
+        //    else
+        //    {
+        //        WriteToLog("getRecordValueByParam: can't getRecordValueByParam");
+        //        return false;
+        //    }
+        //}
 
-        public bool GetRecordsList(out List<Record> records, bool FCV = true)
-        {
-            records = new List<Record>();
+        //public bool GetRecordsList(out List<Record> records, bool FCV = true)
+        //{
+        //    records = new List<Record>();
 
-            List<byte> answerBytes = new List<byte>();
-            if (!SendREQ_UD2(out answerBytes) || answerBytes.Count == 0)
-            {
-                WriteToLog("GetRecordsList: не получены байты ответа");
-                return false;
-            }
+        //    List<byte> answerBytes = new List<byte>();
 
-            if (bLogOutBytes)
-            {
-                string answBytesStr = String.Format("GetRecordsList, response:\n[{0}];", BitConverter.ToString(answerBytes.ToArray()).Replace("-", " "));
-                WriteToLog(answBytesStr);
-            }
+        //    // т.к. счетчик создается только на итерацию цикла while в сервере опроса,
+        //    // можем взять данные из кэшаЖ тем более суточные и месячные - те же
+        //    // самые данные из req_ud2
+        //    if (cachedAnsewerBytes.Count > 0)
+        //    {
+        //        answerBytes = cachedAnsewerBytes;
+        //    }
+        //    else
+        //    {
+        //        if (!SendREQ_UD2(out answerBytes) || answerBytes.Count == 0)
+        //        {
+        //            WriteToLog("ReadCurrentValues: не получены байты ответа");
+        //            return false;
+        //        }
+        //    }
 
-            if (!SplitRecords(answerBytes, ref records) || records.Count == 0)
-            {
-                WriteToLog("GetRecordsList: не удалось разделить запись");
-                return false;
-            }
+        //    if (bLogOutBytes)
+        //    {
+        //        string answBytesStr = String.Format("GetRecordsList, response:\n[{0}];", BitConverter.ToString(answerBytes.ToArray()).Replace("-", " "));
+        //        WriteToLog(answBytesStr);
+        //    }
 
-            return true;
-        }
+        //    if (!SplitRecords(answerBytes, ref records) || records.Count == 0)
+        //    {
+        //        WriteToLog("GetRecordsList: не удалось разделить запись");
+        //        return false;
+        //    }
+
+        //    return true;
+        //}
 
         public bool SendREQ_UD2(out List<byte> recordsBytesList)
         {
@@ -325,30 +331,30 @@ namespace Drivers.SonoSelectDanfosDriver
 
         //Служебный метод, опрашивающий счетчик для всех элементов перечисления Params,
         //и возвращающих ответ в виде строки. Примняется в тестовой утилите драйвера elf.
-        public bool GetAllValues(out string res, bool FCV = true)
-        {
-            res = "Ошибка";
-            List<Record> records = new List<Record>();
-            if (!GetRecordsList(out records, FCV))
-            {
-                WriteToLog("GetAllValues: can't split records");
-                return false;
-            }
+        //public bool GetAllValues(out string res, bool FCV = true)
+        //{
+        //    res = "Ошибка";
+        //    List<Record> records = new List<Record>();
+        //    if (!GetRecordsList(out records, FCV))
+        //    {
+        //        WriteToLog("GetAllValues: can't split records");
+        //        return false;
+        //    }
 
-            res = "";
-            foreach (Params p in Enum.GetValues(typeof(Params)))
-            {
-                float val = -1f;
-                string s = "false;";
+        //    res = "";
+        //    foreach (Params p in Enum.GetValues(typeof(Params)))
+        //    {
+        //        float val = -1f;
+        //        string s = "false;";
 
-                if (getRecordValueByParam(p, records, out val))
-                    s = val.ToString();
+        //        if (getRecordValueByParam(p, records, out val))
+        //            s = val.ToString();
 
-                res += String.Format("{0}: {1}\n", p.ToString(), s);
-            }
+        //        res += String.Format("{0}: {1}\n", p.ToString(), s);
+        //    }
 
-            return true;
-        }
+        //    return true;
+        //}
 
         #endregion
 
