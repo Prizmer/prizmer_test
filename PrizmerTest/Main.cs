@@ -76,10 +76,14 @@ namespace tu_SET
 
             if (ctlSelectDriver1.Enabled)
             {
-                ctlConnectionSettings1.ClosePortForce();
-                ctlMeters1.Enabled = false;
+                if (ctlConnectionSettings1 != null)
+                {
+                    ctlConnectionSettings1.ClosePortForce();
+                    ctlConnectionSettings1.Enabled = bSuccess;
+                }
 
-                ctlConnectionSettings1.Enabled = bSuccess;
+
+                ctlMeters1.Enabled = false;
             }
         }
 
