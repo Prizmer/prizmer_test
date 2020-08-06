@@ -144,6 +144,10 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\IndivDriver\IndivDriver.csproj">
+      <Project>{5663de85-cc5d-4c48-a011-09bf3c2b5ccb}</Project>
+      <Name>IndivDriver</Name>
+    </ProjectReference>
     <ProjectReference Include="..\KaratDanfosDriver\KaratDanfosDriver.csproj">
       <Project>{922bc22a-b3ca-4c46-8656-cc9d15be7eaf}</Project>
       <Name>KaratDanfosDriver</Name>
