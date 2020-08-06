@@ -139,21 +139,17 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\tu_karatdanfos\Mercury23XDriver\KaratDanfosDriver.csproj">
-      <Project>{9d781833-4219-4c11-89bb-6d0160131414}</Project>
+    <ProjectReference Include="..\KaratDanfosDriver\KaratDanfosDriver.csproj">
+      <Project>{922bc22a-b3ca-4c46-8656-cc9d15be7eaf}</Project>
       <Name>KaratDanfosDriver</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\tu_mercury23X\Mercury23XDriver\Mercury23XDriver.csproj">
-      <Project>{56ab5be1-bc5f-4282-ae46-fdafed2efb01}</Project>
-      <Name>Mercury23XDriver</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\tu_pulsarm\PulsarDriver\PulsarDriver.csproj">
-      <Project>{cd517ce4-70f4-43b8-b38c-11d09b0ccbf1}</Project>
-      <Name>PulsarDriver</Name>
     </ProjectReference>
     <ProjectReference Include="..\Mercury200Driver\Mercury200Driver.csproj">
       <Project>{241cc5c1-79ff-49dc-8a11-f16ca4c6cb44}</Project>
       <Name>Mercury200Driver</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\PulsarDriver\PulsarDriver.csproj">
+      <Project>{da2a9baa-9682-4d21-8f78-25dbc3c7cf10}</Project>
+      <Name>PulsarDriver</Name>
     </ProjectReference>
     <ProjectReference Include="..\SetDriver\SET4tmDriver.csproj">
       <Project>{14fc09ec-8931-4b9b-89bb-42c7f0c6bcfd}</Project>

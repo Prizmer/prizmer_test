@@ -44,7 +44,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\PollServer\LibMeter\LibMeter.csproj">
+    <ProjectReference Include="..\..\ps\LibMeter\LibMeter.csproj">
       <Project>{f0106ca4-43de-4017-956b-0842ad89f90e}</Project>
       <Name>LibMeter</Name>
     </ProjectReference>
