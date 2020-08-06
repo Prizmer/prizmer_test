@@ -22,7 +22,8 @@ namespace Drivers.Mercury200Driver
         public void Init(uint address, string pass, VirtualPort vp)
         {
             // перевод адреса в формат наладчика
-            this.m_address = address; //0xFA000000 + Convert.ToUInt32(3 + address * 8);
+            // формула: 4194304003 + (n кв*8) 
+            this.m_address = 0xFA000000 + Convert.ToUInt32(3 + address * 8);
             this.m_vport = vp;
 
             SetTypesForRead(GetTypesForCategory(CommonCategory.Current));
