@@ -32,18 +32,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="LibCRC">
-      <HintPath>..\..\crc_сalc\LibCRC\bin\Debug\LibCRC.dll</HintPath>
-    </Reference>
-    <Reference Include="libLogger">
-      <HintPath>..\..\..\PollServer\Logger\bin\Debug\libLogger.dll</HintPath>
-    </Reference>
-    <Reference Include="LibMeter">
-      <HintPath>..\..\..\PollServer\LibMeter\bin\Debug\LibMeter.dll</HintPath>
-    </Reference>
-    <Reference Include="PortsLib">
-      <HintPath>..\..\..\PollServer\PortsLib\bin\Debug\PortsLib.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -55,6 +43,24 @@
   <ItemGroup>
     <Compile Include="SET4tmDriver.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\calc_crc\LibCRC\LibCRC.csproj">
+      <Project>{aeb1ae61-cd26-4b78-b5c8-421f22097bab}</Project>
+      <Name>LibCRC</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\ps\LibMeter\LibMeter.csproj">
+      <Project>{f0106ca4-43de-4017-956b-0842ad89f90e}</Project>
+      <Name>LibMeter</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\ps\Logger\LibLogger.csproj">
+      <Project>{d20d8acb-ad07-4e7f-a99e-47f4113b32ea}</Project>
+      <Name>LibLogger</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\ps\PortsLib\LibPorts.csproj">
+      <Project>{13571fb0-472f-43b0-947d-64c5d1f2b4a4}</Project>
+      <Name>LibPorts</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

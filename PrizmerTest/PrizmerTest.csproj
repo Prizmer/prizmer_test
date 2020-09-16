@@ -12,6 +12,7 @@
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFrameworkProfile />
+    <IsWebBootstrapper>false</IsWebBootstrapper>
     <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
@@ -24,7 +25,6 @@
     <MapFileExtensions>true</MapFileExtensions>
     <ApplicationRevision>0</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
-    <IsWebBootstrapper>false</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
@@ -56,18 +56,8 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="libLogger">
-      <HintPath>..\..\..\PollServer\Logger\bin\Debug\libLogger.dll</HintPath>
-    </Reference>
-    <Reference Include="LibMeter">
-      <HintPath>..\..\..\PollServer\LibMeter\bin\Debug\LibMeter.dll</HintPath>
-    </Reference>
     <Reference Include="PMControls">
       <HintPath>..\..\..\PortManager\PMControls\bin\Debug\PMControls.dll</HintPath>
-    </Reference>
-    <Reference Include="PortsLib, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\PollServer\PortsLib\bin\Debug\PortsLib.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
@@ -144,6 +134,18 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\ps\LibMeter\LibMeter.csproj">
+      <Project>{f0106ca4-43de-4017-956b-0842ad89f90e}</Project>
+      <Name>LibMeter</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\ps\Logger\LibLogger.csproj">
+      <Project>{d20d8acb-ad07-4e7f-a99e-47f4113b32ea}</Project>
+      <Name>LibLogger</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\ps\PortsLib\LibPorts.csproj">
+      <Project>{13571fb0-472f-43b0-947d-64c5d1f2b4a4}</Project>
+      <Name>LibPorts</Name>
+    </ProjectReference>
     <ProjectReference Include="..\IndivDriver\IndivDriver.csproj">
       <Project>{5663de85-cc5d-4c48-a011-09bf3c2b5ccb}</Project>
       <Name>IndivDriver</Name>
@@ -167,6 +169,14 @@
     <ProjectReference Include="..\SonoSelectDanfosDriver\SonoSelectDanfosDriver.csproj">
       <Project>{f5519608-fbcf-4954-bdf9-4d789b63cad7}</Project>
       <Name>SonoSelectDanfosDriver</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\TEM104Driver\TEM104Driver.csproj">
+      <Project>{dacd6c27-8d92-4945-a827-0cd8bd9e2944}</Project>
+      <Name>TEM104Driver</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\TEM106Driver\TEM106Driver.csproj">
+      <Project>{f30851dd-b86b-4f52-8c14-35293b00337f}</Project>
+      <Name>TEM106Driver</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

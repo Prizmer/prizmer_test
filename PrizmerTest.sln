@@ -29,6 +29,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PulsarDriver", "PulsarDrive
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IndivDriver", "IndivDriver\IndivDriver.csproj", "{5663DE85-CC5D-4C48-A011-09BF3C2B5CCB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TEM104Driver", "TEM104Driver\TEM104Driver.csproj", "{DACD6C27-8D92-4945-A827-0CD8BD9E2944}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TEM106Driver", "TEM106Driver\TEM106Driver.csproj", "{F30851DD-B86B-4F52-8C14-35293B00337F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +91,14 @@ Global
 		{5663DE85-CC5D-4C48-A011-09BF3C2B5CCB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5663DE85-CC5D-4C48-A011-09BF3C2B5CCB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5663DE85-CC5D-4C48-A011-09BF3C2B5CCB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DACD6C27-8D92-4945-A827-0CD8BD9E2944}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DACD6C27-8D92-4945-A827-0CD8BD9E2944}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DACD6C27-8D92-4945-A827-0CD8BD9E2944}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DACD6C27-8D92-4945-A827-0CD8BD9E2944}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F30851DD-B86B-4F52-8C14-35293B00337F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F30851DD-B86B-4F52-8C14-35293B00337F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F30851DD-B86B-4F52-8C14-35293B00337F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F30851DD-B86B-4F52-8C14-35293B00337F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
