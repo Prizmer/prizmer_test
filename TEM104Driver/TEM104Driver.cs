@@ -1,4 +1,5 @@
-﻿using Drivers.LibMeter;
+﻿using CRCCalc;
+using Drivers.LibMeter;
 using PollingLibraries.LibPorts;
 using System;
 using System.Collections.Generic;
@@ -109,6 +110,11 @@ namespace Drivers.TEM104Driver
             private byte m_length_cmd = 0;
             //private byte m_ident_name_size = 0;
             //private int IDENT_CMD_ANSWER_SIZE = m_min_answer_length;
+
+
+
+            LibCRC crcLib = new LibCRC();
+            const string CRC_ALG_NAME = "crc8Tem104";
 
             /// <summary>
             /// Конструктор
@@ -621,21 +627,39 @@ namespace Drivers.TEM104Driver
             /// <param name="command"></param>
             private void MakeCommand(byte[] data, byte length_data, byte type_command, byte command)
             {
-                m_length_cmd = 0;
-
-                m_cmd[m_length_cmd++] = m_begin_packet_signature;
-                m_cmd[m_length_cmd++] = (byte)this.m_address;
-                m_cmd[m_length_cmd++] = (byte)(~m_address);
-                m_cmd[m_length_cmd++] = type_command;
-                m_cmd[m_length_cmd++] = command;
-                m_cmd[m_length_cmd++] = length_data;
-
-                for (int i = 0; i < length_data; i++)
+                List<byte> mCmdList = new List<byte> 
                 {
-                    m_cmd[m_length_cmd++] = data[i];
-                }
+                    m_begin_packet_signature,
+                    (byte)this.m_address,
+                    (byte)(~m_address),
+                    type_command,
+                    command,
+                    length_data
+                };
 
-                m_cmd[m_length_cmd++] = CalcCRC(m_cmd, m_length_cmd);
+                mCmdList.AddRange(data);
+               
+
+                byte crc =  CalcCRC(mCmdList.ToArray(), (ushort)(mCmdList.Count + 1));
+                mCmdList.Add(crc);
+
+                m_cmd = mCmdList.ToArray();
+
+                //m_length_cmd = 0;
+
+                //m_cmd[m_length_cmd++] = m_begin_packet_signature;
+                //m_cmd[m_length_cmd++] = (byte)this.m_address;
+                //m_cmd[m_length_cmd++] = (byte)(~m_address);
+                //m_cmd[m_length_cmd++] = type_command;
+                //m_cmd[m_length_cmd++] = command;
+                //m_cmd[m_length_cmd++] = length_data;
+
+                //for (int i = 0; i < length_data; i++)
+                //{
+                //    m_cmd[m_length_cmd++] = data[i];
+                //}
+
+                //m_cmd[m_length_cmd++] = CalcCRC(m_cmd, m_length_cmd);
             }
 
             /// <summary>

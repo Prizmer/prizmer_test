@@ -26,6 +26,13 @@ namespace Drivers.PulsarDriver
             }
         }
 
+        public PulsarDriver() {}
+
+        public PulsarDriver(PulsarMeterTypes pulsarMeterType)
+        {
+            this.meterType = pulsarMeterType;
+        }
+
         private void ClearTypesForRead()
         {
             m_listTypesForRead.Clear();

@@ -130,6 +130,7 @@ namespace Drivers.TEM106Driver
 
         public void SetTypesForRead(List<byte> types)
         {
+            m_listTypesForRead.Clear();
             for (int i = 0; i < types.Count; i++)
             {
                 if (m_dictDataTypes.ContainsKey(types[i]))
@@ -245,7 +246,7 @@ namespace Drivers.TEM106Driver
                     {
                         address_buffer = AddressToBytes(dict_address_by_date[date]);
 
-                        if (ReadValuesFromAddress(TypesCommands.tc512K, 4, address_buffer, answer_bytes))
+                        if (ReadValuesFromAddress(TypesCommands.tc512K, 4, address_buffer, ref answer_bytes))
                         {
                             ihour = (int)CommonMeters.BCDToByte(answer_bytes[m_header_length + 0]);
                             iday = (int)CommonMeters.BCDToByte(answer_bytes[m_header_length + 1]);
@@ -273,7 +274,7 @@ namespace Drivers.TEM106Driver
                             address_buffer[2] = 0;
                             address_buffer[3] = 0;
 
-                            if (ReadValuesFromAddress(TypesCommands.tc512K, 4, address_buffer, answer_bytes))
+                            if (ReadValuesFromAddress(TypesCommands.tc512K, 4, address_buffer, ref answer_bytes))
                             {
                                 already_read_first_address = true;
 
@@ -321,7 +322,7 @@ namespace Drivers.TEM106Driver
                             address_buffer[2] = address_expected_bytes[1];
                             address_buffer[3] = address_expected_bytes[0];
 
-                            if (ReadValuesFromAddress(TypesCommands.tc512K, 4, address_buffer, answer_bytes))
+                            if (ReadValuesFromAddress(TypesCommands.tc512K, 4, address_buffer, ref answer_bytes))
                             {
                                 ihour = (int)CommonMeters.BCDToByte(answer_bytes[m_header_length + 0]);
                                 iday = (int)CommonMeters.BCDToByte(answer_bytes[m_header_length + 1]);
@@ -385,7 +386,7 @@ namespace Drivers.TEM106Driver
                                         if (!dict_address_by_date.ContainsValue(BytesToAddress(address_buffer)))
                                         {
                                             //WriteToLog("Address=" + address_buffer[0].ToString("x") + "|" + address_buffer[1].ToString("x") + "|" + address_buffer[2].ToString("x") + "|" + address_buffer[3].ToString("x"));
-                                            if (ReadValuesFromAddress(TypesCommands.tc512K, 4, address_buffer, answer_bytes))
+                                            if (ReadValuesFromAddress(TypesCommands.tc512K, 4, address_buffer, ref answer_bytes))
                                             {
                                                 ihour = (int)CommonMeters.BCDToByte(answer_bytes[m_header_length + 0]);
                                                 iday = (int)CommonMeters.BCDToByte(answer_bytes[m_header_length + 1]);
@@ -498,7 +499,7 @@ namespace Drivers.TEM106Driver
 
                 byte[] answer_bytes = new byte[READVALUES_CMD_ANSWER_SIZE + lengths[i]];
 
-                if (ReadValuesFromAddress(TypesCommands.tc512K, lengths[i], address_buffer, answer_bytes))
+                if (ReadValuesFromAddress(TypesCommands.tc512K, lengths[i], address_buffer, ref answer_bytes))
                 {
                     List<double> temp_values = new List<double>();
 
@@ -554,7 +555,12 @@ namespace Drivers.TEM106Driver
                                 RecordValue rv;
                                 rv.fine_state = true;
                                 rv.type = number_value;
-                                rv.value = temp_values[j];
+
+                                // если температура или объекм, делим на 100
+                                if (number_value >= 34 && number_value <= 57)
+                                    rv.value = temp_values[j] / 100;
+                                else
+                                    rv.value = temp_values[j];
 
                                 values.listRV.Add(rv);
 
@@ -577,7 +583,7 @@ namespace Drivers.TEM106Driver
             return (values.listRV.Count == m_listTypesForRead.Count) ? true : false;
         }
 
-        private bool ReadValuesFromAddress(TypesCommands tc, byte length_data, byte[] begin_address, byte[] answer_bytes, int index_begin_address = 0)
+        private bool ReadValuesFromAddress(TypesCommands tc, byte length_data, byte[] begin_address, ref byte[] answer_bytes, int index_begin_address = 0)
         {
             byte[] data = null;
 
@@ -601,12 +607,9 @@ namespace Drivers.TEM106Driver
 
             MakeCommand(data, (byte)data.Length, 0xF, (byte)tc);
 
-            for (int i = 0; i < 5; i++)
+            if (SendCommand(ref answer_bytes, READVALUES_CMD_ANSWER_SIZE + length_data))
             {
-                if (SendCommand(ref answer_bytes, READVALUES_CMD_ANSWER_SIZE + length_data))
-                {
-                    return true;
-                }
+                return true;
             }
 
             return false;
@@ -650,36 +653,42 @@ namespace Drivers.TEM106Driver
             // проверка длины 
             if (size < m_min_answer_length)
             {
+                WriteToLog("FinishAccept fail: size < m_min_answer_length");
                 return false;
             }
 
             // проверяем сигнатурного байта
             if (answer[0] != (byte)(~m_begin_packet_signature))
             {
+                WriteToLog("FinishAccept fail: проверяем сигнатурного байта");
                 return false;
             }
 
             // проверка сетевого адреса
             if (answer[1] != m_address)
             {
+                WriteToLog("FinishAccept fail: проверка сетевого адреса");
                 return false;
             }
 
             // проверка инверсного значения сетевого адреса
             if (answer[2] != (byte)(~m_address))
             {
+                WriteToLog("FinishAccept fail: проверка инверсного значения сетевого адреса");
                 return false;
             }
 
             //// проверка типа команды
             if (answer[3] != m_cmd[3])
             {
+                WriteToLog("FinishAccept fail: проверка типа команды");
                 return false;
             }
 
             // проверка команды
             if (answer[4] != m_cmd[4])
             {
+                WriteToLog("FinishAccept fail: проверка команды");
                 return false;
             }
 
@@ -688,6 +697,7 @@ namespace Drivers.TEM106Driver
                 // проверяем CRC
                 if (CalcCRC(answer, size) != answer[size - 1])
                 {
+                    WriteToLog("FinishAccept fail: проверяем CRC");
                     return false;
                 }
             }
@@ -730,6 +740,7 @@ namespace Drivers.TEM106Driver
                     //проверка пришедших данных
                     if (FinishAccept(answer, Convert.ToUInt16(answ_size), verify_crc))
                     {
+                        WriteToLog("SendCommand FinishAccept success");
                         res = true;
                     }
                 }
@@ -825,7 +836,6 @@ namespace Drivers.TEM106Driver
             return true;
         }
 
-
         public bool ReadCurrentValues(ref Values values)
         {
             byte[] value_sizes = new byte[] { 4, 4, 4, 2, 1, 4 };
@@ -840,8 +850,12 @@ namespace Drivers.TEM106Driver
                 {
                     answer_bytes = new byte[READVALUES_CMD_ANSWER_SIZE + lengths[i]];
 
-                    if (ReadValuesFromAddress(TypesCommands.tc2K, lengths[i], begin_address, answer_bytes, i))
+                    if (ReadValuesFromAddress(TypesCommands.tc2K, lengths[i], begin_address, ref answer_bytes, i))
                     {
+                        WriteToLog(string.Format("Success {0}, bytes: {1}\n", i,
+                            BitConverter.ToString(answer_bytes)
+                            )) ;
+
                         List<double> temp_values = new List<double>();
 
                         switch (value_sizes[i])
@@ -889,7 +903,7 @@ namespace Drivers.TEM106Driver
                         {
                             for (int j = 0; j < temp_values.Count; j++)
                             {
-                                // WriteToLog(temp_values[j].ToString());
+                                WriteToLog(temp_values[j].ToString());
                                 if (m_listTypesForRead.Contains(number_value))
                                 {
                                     RecordValue rv;

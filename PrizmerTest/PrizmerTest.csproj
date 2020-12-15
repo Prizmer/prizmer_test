@@ -55,6 +55,26 @@
   <PropertyGroup>
     <StartupObject />
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x86\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <OutputPath>bin\x86\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="PMControls">
       <HintPath>..\..\..\PortManager\PMControls\bin\Debug\PMControls.dll</HintPath>
@@ -169,6 +189,10 @@
     <ProjectReference Include="..\SonoSelectDanfosDriver\SonoSelectDanfosDriver.csproj">
       <Project>{f5519608-fbcf-4954-bdf9-4d789b63cad7}</Project>
       <Name>SonoSelectDanfosDriver</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\STKWaterDriver\STKWaterDriver.csproj">
+      <Project>{11f52f06-739b-4a2d-9be1-5035ad3ebb61}</Project>
+      <Name>STKWaterDriver</Name>
     </ProjectReference>
     <ProjectReference Include="..\TEM104Driver\TEM104Driver.csproj">
       <Project>{dacd6c27-8d92-4945-a827-0cd8bd9e2944}</Project>
