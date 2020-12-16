@@ -73,7 +73,6 @@ namespace Drivers.PulsarDriver
                 {
                     if (!archives) val = BitConverter.ToSingle(data, 6 + startIndexMult * 4);
                     else val = BitConverter.ToSingle(data, 0);
-
                 }
             }
             catch (Exception ex)
@@ -84,7 +83,7 @@ namespace Drivers.PulsarDriver
 
             val = Math.Round(val, 7);
 
-            if (val > -1) return true;
+            if (val >= 0) return true;
             else return false;
         }
 
