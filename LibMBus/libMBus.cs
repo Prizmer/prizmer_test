@@ -289,6 +289,11 @@ namespace Drivers.LibMBus
             return crc;
         }
 
+        public int BCDToNumber(byte[] arr)
+        {
+            return int.Parse(BitConverter.ToString(arr).Replace("-",""));
+        }
+
         #endregion
 
     }

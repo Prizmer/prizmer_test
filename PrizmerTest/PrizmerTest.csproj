@@ -190,6 +190,10 @@
       <Project>{f5519608-fbcf-4954-bdf9-4d789b63cad7}</Project>
       <Name>SonoSelectDanfosDriver</Name>
     </ProjectReference>
+    <ProjectReference Include="..\STKHeatDriver\STKHeatDriver.csproj">
+      <Project>{c552ceda-de12-4a5a-9471-0576b04ac28e}</Project>
+      <Name>STKHeatDriver</Name>
+    </ProjectReference>
     <ProjectReference Include="..\STKWaterDriver\STKWaterDriver.csproj">
       <Project>{11f52f06-739b-4a2d-9be1-5035ad3ebb61}</Project>
       <Name>STKWaterDriver</Name>
